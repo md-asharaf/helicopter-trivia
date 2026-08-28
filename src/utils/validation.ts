@@ -76,12 +76,12 @@ function validateQuestion(q: unknown, index: number): QuizQuestion {
 
   const obj = q as Record<string, unknown>
 
-  const prompt = extractFieldString(obj.prompt ?? obj.question ?? obj.title)
+  const prompt = extractFieldString(obj.prompt ?? obj.question ?? obj.title ?? obj.Word)
   if (!prompt) {
     throw new QuizValidationError(`Question ${index + 1}: missing or empty "prompt"`)
   }
 
-  const hint = extractFieldString(obj.hint ?? obj.clue ?? obj.description)
+  const hint = extractFieldString(obj.hint ?? obj.clue ?? obj.description ?? obj.Hint)
   if (!hint) {
     throw new QuizValidationError(`Question ${index + 1}: missing or empty "hint"`)
   }
@@ -108,7 +108,7 @@ function validateQuestion(q: unknown, index: number): QuizQuestion {
     throw new QuizValidationError(`Question ${index + 1}: duplicate options found`)
   }
 
-  const rawAnswer = obj.answer ?? obj.correctAnswer ?? obj.correct_answer
+  const rawAnswer = obj.answer ?? obj.correctAnswer ?? obj.correct_answer ?? obj.Definition
   const answerStr = extractFieldString(rawAnswer)
   if (!answerStr) {
     throw new QuizValidationError(`Question ${index + 1}: missing or empty "answer"`)
@@ -130,14 +130,28 @@ function validateQuestion(q: unknown, index: number): QuizQuestion {
 }
 
 /**
- * Validates the entire quiz array. Returns normalized QuizQuestion[] on success.
+ * Validates the entire quiz array or wrapped payload ({ data: [...] }, { questions: [...] }).
+ * Returns normalized QuizQuestion[] on success.
  */
-export function validateQuiz(data: unknown): QuizQuestion[] {
-  if (!Array.isArray(data)) {
+export function validateQuiz(raw: unknown): QuizQuestion[] {
+  let list: unknown = raw
+
+  // Unwrap if payload is wrapped in an API response envelope
+  if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) {
+    const obj = raw as Record<string, unknown>
+    list = obj.data ?? obj.questions ?? obj.quiz ?? obj.result ?? obj.items ?? obj.payload ?? raw
+  }
+
+  if (typeof list === 'object' && list !== null && !Array.isArray(list)) {
+    const obj = list as Record<string, unknown>
+    list = obj.data ?? obj.questions ?? obj.quiz ?? obj.result ?? list
+  }
+
+  if (!Array.isArray(list)) {
     throw new QuizValidationError('Quiz data is not an array')
   }
-  if (data.length === 0) {
+  if (list.length === 0) {
     throw new QuizValidationError('Quiz contains no questions')
   }
-  return data.map((q, idx) => validateQuestion(q, idx))
+  return list.map((q, idx) => validateQuestion(q, idx))
 }
