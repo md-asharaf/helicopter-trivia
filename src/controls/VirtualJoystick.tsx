@@ -95,10 +95,10 @@ export function VirtualJoystick({ onFirePress }: VirtualJoystickProps) {
   }, [onFirePress])
 
   return (
-    <div className="mobile-controls" aria-label="Touch controls">
-      {/* Virtual joystick zone */}
+    <div className="virtual-controls" aria-label="Mobile Touch Controls">
+      {/* Virtual Joystick for Aim & Flight */}
       <div
-        className="joystick-zone"
+        className="joystick-area"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -107,19 +107,29 @@ export function VirtualJoystick({ onFirePress }: VirtualJoystickProps) {
         aria-label="Flight steering joystick"
       >
         <div className="joystick-base">
+          <div className="joystick-ring" />
           <div ref={knobRef} className="joystick-knob" />
+          <div className="joystick-arrows">
+            <span className="arrow arrow-up">▲</span>
+            <span className="arrow arrow-down">▼</span>
+            <span className="arrow arrow-left">◀</span>
+            <span className="arrow arrow-right">▶</span>
+          </div>
         </div>
+        <span className="joystick-label">AIM / FLIGHT</span>
       </div>
 
-      {/* Bomb drop button */}
-      <button
-        className="mobile-fire-btn"
-        onTouchStart={handleFireTouch}
-        aria-label="Drop bomb"
-      >
-        <span className="mobile-fire-btn__icon">💣</span>
-        <span className="mobile-fire-btn__label">DROP</span>
-      </button>
+      {/* Tactile Grenade Drop Button */}
+      <div className="fire-area">
+        <button
+          className="fire-button"
+          onTouchStart={handleFireTouch}
+          aria-label="Drop bomb grenade"
+        >
+          <span className="fire-icon">💣</span>
+          <span className="fire-label">LAUNCH</span>
+        </button>
+      </div>
     </div>
   )
 }
