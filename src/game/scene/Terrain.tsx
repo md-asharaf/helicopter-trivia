@@ -6,9 +6,101 @@ import { GAME_CONFIG } from '@/game/gameConfig'
 const CHASE_SPEED = 28.0
 const TREE_COUNT = 80
 
+interface TreeTransform {
+  x: number
+  y: number
+  z: number
+  scale: number
+}
+
+function multiNoise(x: number, z: number): number {
+  let val = 0
+  val += Math.sin(x * 0.025 + 0.8) * Math.cos(z * 0.025 + 1.2) * 0.55
+  val += Math.sin(x * 0.055 + 2.1) * Math.cos(z * 0.05 + 0.4) * 0.28
+  val += Math.sin(x * 0.12 + 1.4) * Math.cos(z * 0.11 + 2.5) * 0.12
+  val += Math.sin(x * 0.25 + 3.2) * Math.cos(z * 0.24 + 1.1) * 0.05
+
+  // Canyon carve down the middle
+  const riverDist = Math.abs(x) / 35.0
+  const riverFactor = Math.min(1.0, riverDist)
+  return ((val + 1) / 2) * (0.3 + 0.7 * riverFactor)
+}
+
+function getTerrainColor(normalized: number): [number, number, number] {
+  if (normalized < 0.12) {
+    // Alpine river channel
+    return [0.08, 0.42, 0.62]
+  }
+  if (normalized < 0.24) {
+    // Riverbed sand / gravel
+    return [0.62, 0.58, 0.44]
+  }
+  if (normalized < 0.55) {
+    // Lush green valley / forest meadows
+    return [
+      0.16 + (normalized - 0.24) * 0.15,
+      0.48 + (normalized - 0.24) * 0.25,
+      0.14 + (normalized - 0.24) * 0.10,
+    ]
+  }
+  if (normalized < 0.8) {
+    // Highland rocky slope
+    return [
+      0.38 + (normalized - 0.55) * 0.25,
+      0.36 + (normalized - 0.55) * 0.20,
+      0.30 + (normalized - 0.55) * 0.18,
+    ]
+  }
+  // Snow-kissed mountain peaks
+  return [0.85, 0.90, 0.94]
+}
+
+function buildTerrainData(size: number, subdivisions: number, maxHeight: number) {
+  const geo = new THREE.PlaneGeometry(size, size, subdivisions, subdivisions)
+  geo.rotateX(-Math.PI / 2)
+
+  const pos = geo.attributes.position as THREE.BufferAttribute
+  const colors: number[] = []
+  const validTreePositions: TreeTransform[] = []
+
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i)
+    const z = pos.getZ(i)
+    const n = multiNoise(x, z)
+    const height = n * maxHeight
+
+    pos.setY(i, height)
+
+    const normalized = height / maxHeight
+    const [r, g, b] = getTerrainColor(normalized)
+    colors.push(r, g, b)
+
+    // Deterministic pseudo-random placement for trees based on coordinates
+    const pseudoRand = Math.abs(Math.sin(x * 12.9898 + z * 78.233))
+    if (
+      normalized > 0.22 &&
+      normalized < 0.65 &&
+      Math.abs(x) > 6 &&
+      validTreePositions.length < TREE_COUNT &&
+      pseudoRand < 0.08
+    ) {
+      validTreePositions.push({
+        x,
+        y: height,
+        z,
+        scale: 0.7 + (pseudoRand * 10 % 1) * 0.6,
+      })
+    }
+  }
+
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
+  geo.computeVertexNormals()
+
+  return { geometry: geo, treeTransforms: validTreePositions }
+}
+
 /**
  * Ultra-Realistic High-Speed Alpine Mountain Terrain & Streaming Forest.
- * Features rolling mountain ridges, river waterways, and instanced pine trees.
  */
 export function Terrain() {
   const mesh1Ref = useRef<THREE.Mesh>(null)
@@ -20,91 +112,12 @@ export function Terrain() {
   const subdivisions = GAME_CONFIG.world.terrainSubdivisions
   const maxHeight = 16.0
 
-  const { geometry, treeTransforms } = useMemo(() => {
-    const geo = new THREE.PlaneGeometry(size, size, subdivisions, subdivisions)
-    geo.rotateX(-Math.PI / 2)
-
-    const pos = geo.attributes.position as THREE.BufferAttribute
-    const colors: number[] = []
-
-    function multiNoise(x: number, z: number): number {
-      let val = 0
-      val += Math.sin(x * 0.025 + 0.8) * Math.cos(z * 0.025 + 1.2) * 0.55
-      val += Math.sin(x * 0.055 + 2.1) * Math.cos(z * 0.05 + 0.4) * 0.28
-      val += Math.sin(x * 0.12 + 1.4) * Math.cos(z * 0.11 + 2.5) * 0.12
-      val += Math.sin(x * 0.25 + 3.2) * Math.cos(z * 0.24 + 1.1) * 0.05
-
-      // Canyon carve down the middle
-      const riverDist = Math.abs(x) / 35.0
-      const riverFactor = Math.min(1.0, riverDist)
-      return ((val + 1) / 2) * (0.3 + 0.7 * riverFactor)
-    }
-
-    const validTreePositions: Array<{ x: number; y: number; z: number; scale: number }> = []
-
-    for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i)
-      const z = pos.getZ(i)
-      const n = multiNoise(x, z)
-      const height = n * maxHeight
-
-      pos.setY(i, height)
-
-      // Layered natural terrain coloring
-      const normalized = height / maxHeight
-      let r: number, g: number, b: number
-
-      if (normalized < 0.12) {
-        // Alpine river channel
-        r = 0.08; g = 0.42; b = 0.62
-      } else if (normalized < 0.24) {
-        // Riverbed sand / gravel
-        r = 0.62; g = 0.58; b = 0.44
-      } else if (normalized < 0.55) {
-        // Lush green valley / forest meadows
-        r = 0.16 + (normalized - 0.24) * 0.15
-        g = 0.48 + (normalized - 0.24) * 0.25
-        b = 0.14 + (normalized - 0.24) * 0.10
-      } else if (normalized < 0.8) {
-        // Highland rocky slope
-        r = 0.38 + (normalized - 0.55) * 0.25
-        g = 0.36 + (normalized - 0.55) * 0.20
-        b = 0.30 + (normalized - 0.55) * 0.18
-      } else {
-        // Snow-kissed mountain peaks
-        r = 0.85; g = 0.90; b = 0.94
-      }
-      colors.push(r, g, b)
-
-      // Collect tree spawn positions in valleys and mid-slopes
-      if (
-        normalized > 0.22 &&
-        normalized < 0.65 &&
-        Math.abs(x) > 6 &&
-        validTreePositions.length < TREE_COUNT &&
-        Math.random() < 0.08
-      ) {
-        validTreePositions.push({
-          x,
-          y: height,
-          z,
-          scale: 0.7 + Math.random() * 0.6,
-        })
-      }
-    }
-
-    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
-    geo.computeVertexNormals()
-
-    return { geometry: geo, treeTransforms: validTreePositions }
-  }, [size, subdivisions, maxHeight])
+  const { geometry, treeTransforms } = useMemo(
+    () => buildTerrainData(size, subdivisions, maxHeight),
+    [size, subdivisions, maxHeight]
+  )
 
   const dummy = useMemo(() => new THREE.Object3D(), [])
-
-  // Initialize tree instances on mount
-  useMemo(() => {
-    // We will set matrices in useFrame or on first render
-  }, [])
 
   useFrame((_state, delta) => {
     if (!mesh1Ref.current || !mesh2Ref.current) return
@@ -124,7 +137,6 @@ export function Terrain() {
       forest1Ref.current.position.z = mesh1Ref.current.position.z
       forest2Ref.current.position.z = mesh2Ref.current.position.z
 
-      // Set tree transforms once if needed
       treeTransforms.forEach((t, i) => {
         dummy.position.set(t.x, t.y, t.z)
         dummy.scale.setScalar(t.scale)

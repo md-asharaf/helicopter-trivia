@@ -8,15 +8,95 @@ interface ExplosionProps {
   onComplete?: () => void
 }
 
+interface ParticleData {
+  pos: THREE.Vector3
+  vel: THREE.Vector3
+  scale: number
+  rotSpeed: number
+  maxScale?: number
+}
+
 const FIRE_PARTICLES = 36
 const SMOKE_PARTICLES = 24
 const SPARK_PARTICLES = 30
 const DURATION = 1.6
 
+function getFlameColor(type: 'correct' | 'wrong' | 'miss'): string {
+  if (type === 'correct') return '#ffaa00'
+  if (type === 'miss') return '#888888'
+  return '#ff4400'
+}
+
+function getSparkColor(type: 'correct' | 'wrong' | 'miss'): string {
+  return type === 'correct' ? '#ffd700' : '#ffdd44'
+}
+
+function getPointLightColor(type: 'correct' | 'wrong' | 'miss'): string {
+  return type === 'correct' ? '#ffbb22' : '#ff3300'
+}
+
+function createFireParticles(position: THREE.Vector3): ParticleData[] {
+  const result: ParticleData[] = []
+  for (let i = 0; i < FIRE_PARTICLES; i++) {
+    const theta = Math.random() * Math.PI * 2
+    const phi = Math.random() * Math.PI
+    const speed = 4.0 + Math.random() * 8.0
+    result.push({
+      pos: position.clone(),
+      vel: new THREE.Vector3(
+        Math.sin(phi) * Math.cos(theta) * speed,
+        Math.cos(phi) * speed * 0.8 + 2.0,
+        Math.sin(phi) * Math.sin(theta) * speed
+      ),
+      scale: 0.6 + Math.random() * 0.8,
+      rotSpeed: (Math.random() - 0.5) * 6,
+    })
+  }
+  return result
+}
+
+function createSmokeParticles(position: THREE.Vector3): ParticleData[] {
+  const result: ParticleData[] = []
+  for (let i = 0; i < SMOKE_PARTICLES; i++) {
+    const angle = Math.random() * Math.PI * 2
+    const spread = 2.0 + Math.random() * 4.0
+    result.push({
+      pos: position.clone().add(new THREE.Vector3((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2)),
+      vel: new THREE.Vector3(
+        Math.cos(angle) * spread * 0.6,
+        4.0 + Math.random() * 5.0,
+        Math.sin(angle) * spread * 0.6
+      ),
+      scale: 1.0,
+      maxScale: 2.2 + Math.random() * 2.0,
+      rotSpeed: (Math.random() - 0.5) * 2,
+    })
+  }
+  return result
+}
+
+function createSparkParticles(position: THREE.Vector3): ParticleData[] {
+  const result: ParticleData[] = []
+  for (let i = 0; i < SPARK_PARTICLES; i++) {
+    const theta = Math.random() * Math.PI * 2
+    const phi = Math.random() * Math.PI
+    const speed = 8.0 + Math.random() * 14.0
+    result.push({
+      pos: position.clone(),
+      vel: new THREE.Vector3(
+        Math.sin(phi) * Math.cos(theta) * speed,
+        Math.sin(phi) * Math.sin(theta) * speed + 4.0,
+        Math.cos(phi) * speed
+      ),
+      scale: 0.12 + Math.random() * 0.16,
+      rotSpeed: 0,
+    })
+  }
+  return result
+}
+
 /**
  * Hyper-realistic multi-stage Hollywood fire & explosion system.
- * Features expanding plasma fireball core, rising billowing dark smoke,
- * flying incandescent sparks, shockwave ring, and dynamic fireflash lighting.
  */
 export function Explosion({ position, type, onComplete }: ExplosionProps) {
   const fireMeshRef = useRef<THREE.InstancedMesh>(null)
@@ -26,69 +106,12 @@ export function Explosion({ position, type, onComplete }: ExplosionProps) {
   const fireLightRef = useRef<THREE.PointLight>(null)
   const startTime = useRef<number | null>(null)
 
-  const isMiss = type === 'miss'
   const isCorrect = type === 'correct'
 
   // Fire particles: fast explosive expansion then decay
-  const fireData = useMemo(
-    () =>
-      Array.from({ length: FIRE_PARTICLES }, () => {
-        const theta = Math.random() * Math.PI * 2
-        const phi = Math.random() * Math.PI
-        const speed = 4.0 + Math.random() * 8.0
-        return {
-          pos: position.clone(),
-          vel: new THREE.Vector3(
-            Math.sin(phi) * Math.cos(theta) * speed,
-            Math.cos(phi) * speed * 0.8 + 2.0,
-            Math.sin(phi) * Math.sin(theta) * speed
-          ),
-          scale: 0.6 + Math.random() * 0.8,
-          rotSpeed: (Math.random() - 0.5) * 6,
-        }
-      }),
-    [position]
-  )
-
-  // Smoke particles: slower, expand larger, rise upward
-  const smokeData = useMemo(
-    () =>
-      Array.from({ length: SMOKE_PARTICLES }, () => {
-        const angle = Math.random() * Math.PI * 2
-        const spread = 2.0 + Math.random() * 4.0
-        return {
-          pos: position.clone().add(new THREE.Vector3((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2)),
-          vel: new THREE.Vector3(
-            Math.cos(angle) * spread * 0.6,
-            4.0 + Math.random() * 5.0,
-            Math.sin(angle) * spread * 0.6
-          ),
-          maxScale: 2.2 + Math.random() * 2.0,
-          rotSpeed: (Math.random() - 0.5) * 2,
-        }
-      }),
-    [position]
-  )
-
-  // Incandescent sparks / embers: high velocity, gravity drop
-  const sparkData = useMemo(
-    () =>
-      Array.from({ length: SPARK_PARTICLES }, () => {
-        const theta = Math.random() * Math.PI * 2
-        const phi = Math.random() * Math.PI
-        const speed = 8.0 + Math.random() * 14.0
-        return {
-          pos: position.clone(),
-          vel: new THREE.Vector3(
-            Math.sin(phi) * Math.cos(theta) * speed,
-            Math.sin(phi) * Math.sin(theta) * speed + 4.0,
-            Math.cos(phi) * speed
-          ),
-          scale: 0.12 + Math.random() * 0.16,
-        }
-      }),
-    [position]
-  )
+  const fireData = useMemo(() => createFireParticles(position), [position])
+  const smokeData = useMemo(() => createSmokeParticles(position), [position])
+  const sparkData = useMemo(() => createSparkParticles(position), [position])
 
   const dummy = useMemo(() => new THREE.Object3D(), [])
 
@@ -131,7 +154,8 @@ export function Explosion({ position, type, onComplete }: ExplosionProps) {
         s.vel.y *= 0.97
 
         dummy.position.copy(s.pos)
-        const smokeScale = (progress * 0.8 + 0.2) * s.maxScale
+        const maxS = s.maxScale ?? 2.0
+        const smokeScale = (progress * 0.8 + 0.2) * maxS
         dummy.scale.setScalar(Math.max(0.001, smokeScale))
         dummy.rotation.set(0, progress * s.rotSpeed, 0)
         dummy.updateMatrix()
@@ -166,13 +190,15 @@ export function Explosion({ position, type, onComplete }: ExplosionProps) {
 
     // 5. Fire Lighting Flash
     if (fireLightRef.current) {
-      const flash = Math.sin(progress * Math.PI) * (isCorrect ? 8.0 : 12.0) * (1.0 - progress)
+      const maxIntensity = isCorrect ? 8.0 : 12.0
+      const flash = Math.sin(progress * Math.PI) * maxIntensity * (1.0 - progress)
       fireLightRef.current.intensity = Math.max(0, flash)
     }
   })
 
-  const flameColor = isCorrect ? '#ffaa00' : isMiss ? '#888888' : '#ff4400'
-  const sparkColor = isCorrect ? '#ffd700' : '#ffdd44'
+  const flameColor = getFlameColor(type)
+  const sparkColor = getSparkColor(type)
+  const lightColor = getPointLightColor(type)
 
   return (
     <group position={[0, 0, 0]}>
@@ -217,7 +243,7 @@ export function Explosion({ position, type, onComplete }: ExplosionProps) {
       <pointLight
         ref={fireLightRef}
         position={position.toArray()}
-        color={isCorrect ? '#ffbb22' : '#ff3300'}
+        color={lightColor}
         intensity={10}
         distance={28}
         decay={2}

@@ -8,6 +8,16 @@ interface HelicopterMeshProps {
   crashed?: boolean
 }
 
+function getEmissiveColor(isPlayer: boolean, crashed: boolean): string {
+  if (crashed) return '#ff2200'
+  return isPlayer ? '#003a4d' : '#4d2000'
+}
+
+function getPointLightColor(isPlayer: boolean, crashed: boolean): string {
+  if (crashed) return '#ff2200'
+  return isPlayer ? '#00e5ff' : '#ff8c00'
+}
+
 /**
  * 3D Helicopter Mesh loader using FBX.
  * Uses base-relative URL path for GitHub Pages and production sub-paths.
@@ -21,7 +31,6 @@ export function HelicopterMesh({ isPlayer = false, crashed = false }: Helicopter
 }
 
 function FBXHelicopterModel({ isPlayer, crashed }: { isPlayer: boolean; crashed: boolean }) {
-  // Resolve asset relative to Vite base URL (e.g. /helicopter-trivia/ on GitHub Pages)
   const baseUrl = (import.meta.env.BASE_URL ?? './').replace(/\/$/, '')
   const modelUrl = `${baseUrl}/models/helicopter/Helecopter.fbx`
 
@@ -60,6 +69,10 @@ function FBXHelicopterModel({ isPlayer, crashed }: { isPlayer: boolean; crashed:
       clone.rotation.y = Math.PI
     }
 
+    const emissive = getEmissiveColor(isPlayer, crashed)
+    const emissiveIntensity = crashed ? 2.5 : 0.4
+    const hullColor = isPlayer ? '#0f2738' : '#2d1808'
+
     // Apply sleek PBR metallic military materials
     clone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
@@ -68,13 +81,11 @@ function FBXHelicopterModel({ isPlayer, crashed }: { isPlayer: boolean; crashed:
         mesh.receiveShadow = true
 
         mesh.material = new THREE.MeshStandardMaterial({
-          color: isPlayer ? '#0f2738' : '#2d1808',
+          color: hullColor,
           metalness: 0.85,
           roughness: 0.22,
-          emissive: isPlayer
-            ? (crashed ? '#ff2200' : '#003a4d')
-            : (crashed ? '#ff2200' : '#4d2000'),
-          emissiveIntensity: crashed ? 2.5 : 0.4,
+          emissive,
+          emissiveIntensity,
         })
       }
     })
@@ -82,13 +93,15 @@ function FBXHelicopterModel({ isPlayer, crashed }: { isPlayer: boolean; crashed:
     return clone
   }, [rawFbx, isPlayer, crashed])
 
+  const lightColor = getPointLightColor(isPlayer, crashed)
+
   return (
     <group ref={groupRef} rotation={[0, 0, 0]}>
       <primitive object={cloned} />
 
       {/* Navigation & Engine Glow Point Light */}
       <pointLight
-        color={crashed ? '#ff2200' : (isPlayer ? '#00e5ff' : '#ff8c00')}
+        color={lightColor}
         intensity={crashed ? 3.5 : 1.6}
         distance={7}
         decay={2}

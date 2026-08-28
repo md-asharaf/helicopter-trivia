@@ -8,39 +8,62 @@ export class QuizValidationError extends Error {
 }
 
 /**
- * Extracts a display string from either a primitive or an object of shape:
- * { label?: string, lable?: string, value?: string, text?: string }
+ * Extracts a clean display string from a primitive or an object
  */
 function extractFieldString(field: unknown): string {
-  if (typeof field === 'string') {
-    return field.trim()
-  }
-  if (typeof field === 'number' || typeof field === 'boolean') {
+  if (typeof field === 'string' || typeof field === 'number' || typeof field === 'boolean') {
     return String(field).trim()
   }
   if (typeof field === 'object' && field !== null) {
     const obj = field as Record<string, unknown>
-    // Priority: value -> label -> lable -> text -> title
-    if (typeof obj.value === 'string' && obj.value.trim() !== '') {
-      return obj.value.trim()
-    }
-    if (typeof obj.value === 'number' || typeof obj.value === 'boolean') {
-      return String(obj.value).trim()
-    }
-    if (typeof obj.label === 'string' && obj.label.trim() !== '') {
-      return obj.label.trim()
-    }
-    if (typeof obj.lable === 'string' && obj.lable.trim() !== '') {
-      return obj.lable.trim()
-    }
-    if (typeof obj.text === 'string' && obj.text.trim() !== '') {
-      return obj.text.trim()
-    }
-    if (typeof obj.title === 'string' && obj.title.trim() !== '') {
-      return obj.title.trim()
+    const candidates = [obj.value, obj.label, obj.lable, obj.text, obj.title]
+    for (const val of candidates) {
+      if (val !== undefined && val !== null && String(val).trim() !== '') {
+        return String(val).trim()
+      }
     }
   }
   return ''
+}
+
+function resolveMatchingAnswer(
+  answer: string,
+  options: string[],
+  rawOptions: unknown[]
+): string | null {
+  const direct = options.find((opt) => opt.toLowerCase() === answer.toLowerCase())
+  if (direct) return direct
+
+  // Check letter indexing (A, B, C, D)
+  const optionLetters = ['a', 'b', 'c', 'd']
+  const letterIdx = optionLetters.indexOf(answer.toLowerCase())
+  if (letterIdx >= 0 && options[letterIdx]) {
+    return options[letterIdx]
+  }
+
+  // Check numeric index
+  const numIdx = parseInt(answer, 10)
+  if (!isNaN(numIdx) && numIdx >= 0 && numIdx < options.length) {
+    return options[numIdx]
+  }
+
+  // Check nested object matches in raw options
+  for (let i = 0; i < rawOptions.length; i++) {
+    const rawOpt = rawOptions[i]
+    if (typeof rawOpt === 'object' && rawOpt !== null) {
+      const r = rawOpt as Record<string, unknown>
+      const val = extractFieldString(r.value)
+      const lbl = extractFieldString(r.label ?? r.lable)
+      if (
+        (val && val.toLowerCase() === answer.toLowerCase()) ||
+        (lbl && lbl.toLowerCase() === answer.toLowerCase())
+      ) {
+        return options[i]
+      }
+    }
+  }
+
+  return null
 }
 
 /**
@@ -86,51 +109,15 @@ function validateQuestion(q: unknown, index: number): QuizQuestion {
   }
 
   const rawAnswer = obj.answer ?? obj.correctAnswer ?? obj.correct_answer
-  let answer = extractFieldString(rawAnswer)
-  if (!answer) {
+  const answerStr = extractFieldString(rawAnswer)
+  if (!answerStr) {
     throw new QuizValidationError(`Question ${index + 1}: missing or empty "answer"`)
   }
 
-  // If answer matches directly by value or label in raw options
-  let matchedOption = options.find((opt) => opt.toLowerCase() === answer.toLowerCase())
-
-  if (!matchedOption) {
-    // Check if rawAnswer was pointing to an index or letter like "A", "B", "C", "D" or 0, 1, 2, 3
-    const optionLetters = ['a', 'b', 'c', 'd']
-    const letterIdx = optionLetters.indexOf(answer.toLowerCase())
-    if (letterIdx >= 0 && options[letterIdx]) {
-      matchedOption = options[letterIdx]
-      answer = matchedOption
-    } else {
-      const numIdx = parseInt(answer, 10)
-      if (!isNaN(numIdx) && numIdx >= 0 && numIdx < options.length) {
-        matchedOption = options[numIdx]
-        answer = matchedOption
-      }
-    }
-  }
-
-  if (!matchedOption) {
-    // Check inside rawOptions objects if answer matched label/lable/value
-    rawOptions.forEach((rawOpt, i) => {
-      if (typeof rawOpt === 'object' && rawOpt !== null) {
-        const r = rawOpt as Record<string, unknown>
-        const val = extractFieldString(r.value)
-        const lbl = extractFieldString(r.label ?? r.lable)
-        if (
-          (val && val.toLowerCase() === answer.toLowerCase()) ||
-          (lbl && lbl.toLowerCase() === answer.toLowerCase())
-        ) {
-          matchedOption = options[i]
-          answer = options[i]
-        }
-      }
-    })
-  }
-
-  if (!matchedOption) {
+  const matched = resolveMatchingAnswer(answerStr, options, rawOptions)
+  if (!matched) {
     throw new QuizValidationError(
-      `Question ${index + 1}: answer "${answer}" does not match any of the options: [${options.join(', ')}]`
+      `Question ${index + 1}: answer "${answerStr}" does not match any of the options: [${options.join(', ')}]`
     )
   }
 
@@ -138,38 +125,19 @@ function validateQuestion(q: unknown, index: number): QuizQuestion {
     prompt,
     hint,
     options,
-    answer: matchedOption,
+    answer: matched,
   }
 }
 
 /**
- * Validates the full quiz response. Returns validated questions array.
+ * Validates the entire quiz array. Returns normalized QuizQuestion[] on success.
  */
 export function validateQuiz(data: unknown): QuizQuestion[] {
-  if (data === null || data === undefined) {
-    throw new QuizValidationError('Empty response from server')
+  if (!Array.isArray(data)) {
+    throw new QuizValidationError('Quiz data is not an array')
   }
-
-  let raw: unknown[]
-
-  if (Array.isArray(data)) {
-    raw = data
-  } else if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>
-    // Try common wrapper shapes: { questions }, { data }, { results }, { quiz }, { items }
-    const inner = obj.questions ?? obj.data ?? obj.results ?? obj.quiz ?? obj.items
-    if (Array.isArray(inner)) {
-      raw = inner
-    } else {
-      throw new QuizValidationError('Response is not a questions array and no known wrapper found')
-    }
-  } else {
-    throw new QuizValidationError('Unexpected response format')
-  }
-
-  if (raw.length === 0) {
+  if (data.length === 0) {
     throw new QuizValidationError('Quiz contains no questions')
   }
-
-  return raw.map(validateQuestion)
+  return data.map((q, idx) => validateQuestion(q, idx))
 }

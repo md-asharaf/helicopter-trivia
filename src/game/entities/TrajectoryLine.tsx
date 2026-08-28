@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useMemo } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 import { Line, Html } from '@react-three/drei'
@@ -24,12 +24,11 @@ const TARGET_POSITIONS = [
  * 100% matches the Bomb's actual flight path to the locked helicopter.
  */
 export function TrajectoryLine({ playerPosition, visible }: TrajectoryLineProps) {
-  const arcPointsRef = useRef<THREE.Vector3[]>(
-    Array.from({ length: STEPS }, () => new THREE.Vector3())
+  const points = useMemo(
+    () => Array.from({ length: STEPS }, () => new THREE.Vector3()),
+    []
   )
   const targetLockRef = useRef<THREE.Group>(null)
-  const lockedIndexRef = useRef(1)
-  const lockPosRef = useRef(new THREE.Vector3(0, 16.5, -34))
 
   useFrame(({ clock }) => {
     if (!visible) return
@@ -47,10 +46,7 @@ export function TrajectoryLine({ playerPosition, visible }: TrajectoryLineProps)
       }
     })
 
-    lockedIndexRef.current = closestIdx
     const lockedTarget = TARGET_POSITIONS[closestIdx].pos
-    lockPosRef.current.copy(lockedTarget)
-
     const startPos = playerPosition.clone().add(new THREE.Vector3(0, -0.5, -1.0))
 
     // Build exact trajectory curve matching the bomb
@@ -58,7 +54,7 @@ export function TrajectoryLine({ playerPosition, visible }: TrajectoryLineProps)
       const progress = i / (STEPS - 1)
       const pt = new THREE.Vector3().lerpVectors(startPos, lockedTarget, progress)
       pt.y += 4 * ARC_HEIGHT * progress * (1 - progress)
-      arcPointsRef.current[i].copy(pt)
+      points[i].copy(pt)
     }
 
     // Animate target lock bracket
@@ -72,13 +68,11 @@ export function TrajectoryLine({ playerPosition, visible }: TrajectoryLineProps)
 
   if (!visible) return null
 
-  const lockedTarget = TARGET_POSITIONS[lockedIndexRef.current]
-
   return (
     <group>
       {/* Primary bright glowing trajectory arc */}
       <Line
-        points={arcPointsRef.current}
+        points={points}
         color="#00e5ff"
         lineWidth={4.5}
         transparent
@@ -87,7 +81,7 @@ export function TrajectoryLine({ playerPosition, visible }: TrajectoryLineProps)
 
       {/* Trajectory glow aura */}
       <Line
-        points={arcPointsRef.current}
+        points={points}
         color="#0088cc"
         lineWidth={9.0}
         transparent
@@ -95,7 +89,7 @@ export function TrajectoryLine({ playerPosition, visible }: TrajectoryLineProps)
       />
 
       {/* 3D Target Lock-On Ring & Brackets */}
-      <group ref={targetLockRef} position={[lockPosRef.current.x, lockPosRef.current.y, lockPosRef.current.z]}>
+      <group ref={targetLockRef} position={[0, 16.5, -26]}>
         {/* Outer targeting ring */}
         <mesh rotation={[0, 0, 0]}>
           <ringGeometry args={[2.3, 2.55, 32]} />
@@ -108,11 +102,10 @@ export function TrajectoryLine({ playerPosition, visible }: TrajectoryLineProps)
           <meshBasicMaterial color="#ff8c00" transparent opacity={0.95} side={THREE.DoubleSide} />
         </mesh>
 
-        {/* 3D Lock Label HTML */}
-        <Html center position={[0, -2.4, 0]} distanceFactor={14} style={{ pointerEvents: 'none' }}>
+        {/* Tactical target lock label */}
+        <Html position={[0, 3.2, 0]} center transform distanceFactor={28}>
           <div className="target-lock-badge">
-            <span className="target-lock-badge__icon">🎯</span>
-            <span className="target-lock-badge__text">LOCKED: OPTION {lockedTarget?.letter}</span>
+            <span className="target-lock-badge__text">🎯 TARGET LOCK</span>
           </div>
         </Html>
       </group>

@@ -1,6 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { useGameState, useGameDispatch } from '@/game/GameContext'
 
+function getResultOverlayClass(result: 'correct' | 'wrong' | 'miss'): string {
+  if (result === 'correct') return 'result-overlay--correct'
+  if (result === 'wrong') return 'result-overlay--wrong'
+  return 'result-overlay--miss'
+}
+
 /**
  * Animated result overlay — slides in after bomb resolution.
  * Shows correct/wrong/miss with score delta and streak.
@@ -39,13 +45,7 @@ export function ResultOverlay() {
   if (!isResolving || !state.lastResult) return null
 
   const currentQuestion = state.questions[state.currentQuestionIndex]
-
-  const resultClass = isCorrect
-    ? 'result-overlay--correct'
-    : isWrong
-      ? 'result-overlay--wrong'
-      : 'result-overlay--miss'
-
+  const resultClass = getResultOverlayClass(state.lastResult)
   const delta = isCorrect ? '+100' : '−10'
 
   const handleContinue = () => {
