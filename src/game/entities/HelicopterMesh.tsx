@@ -10,8 +10,7 @@ interface HelicopterMeshProps {
 
 /**
  * 3D Helicopter Mesh loader using FBX.
- * Automatically analyzes mesh dimensions (X vs Z) to guarantee the helicopter
- * always faces 100% straight forward (-Z) without being sideways.
+ * Uses base-relative URL path for GitHub Pages and production sub-paths.
  */
 export function HelicopterMesh({ isPlayer = false, crashed = false }: HelicopterMeshProps) {
   return (
@@ -22,7 +21,11 @@ export function HelicopterMesh({ isPlayer = false, crashed = false }: Helicopter
 }
 
 function FBXHelicopterModel({ isPlayer, crashed }: { isPlayer: boolean; crashed: boolean }) {
-  const rawFbx = useLoader(FBXLoader, '/models/helicopter/Helecopter.fbx')
+  // Resolve asset relative to Vite base URL (e.g. /helicopter-trivia/ on GitHub Pages)
+  const baseUrl = (import.meta.env.BASE_URL ?? './').replace(/\/$/, '')
+  const modelUrl = `${baseUrl}/models/helicopter/Helecopter.fbx`
+
+  const rawFbx = useLoader(FBXLoader, modelUrl)
   const groupRef = useRef<THREE.Group>(null)
 
   const cloned = useMemo(() => {
@@ -34,7 +37,7 @@ function FBXHelicopterModel({ isPlayer, crashed }: { isPlayer: boolean; crashed:
     box.getSize(size)
     const maxDim = Math.max(size.x, size.y, size.z)
 
-    // Standardize length to 5.6 units (much larger & detailed close-up)
+    // Standardize length to 5.6 units
     const targetScale = maxDim > 0 ? 5.6 / maxDim : 0.024
     clone.scale.setScalar(targetScale)
 
@@ -99,13 +102,13 @@ function ProceduralHelicopterFallback({ isPlayer }: { isPlayer: boolean }) {
   const hullColor = isPlayer ? '#0d1f2d' : '#1a0d00'
 
   return (
-    <group rotation={[0, 0, 0]}>
+    <group rotation={[Math.PI, 0, 0]}>
       <mesh castShadow receiveShadow position={[0, 0, 0]}>
-        <boxGeometry args={[1.0, 0.75, 2.2]} />
+        <boxGeometry args={[1.6, 1.2, 3.8]} />
         <meshStandardMaterial color={hullColor} metalness={0.8} roughness={0.3} />
       </mesh>
-      <mesh castShadow position={[0, 0.05, -0.85]}>
-        <sphereGeometry args={[0.42, 10, 8]} />
+      <mesh castShadow position={[0, 0.05, -1.5]}>
+        <sphereGeometry args={[0.7, 10, 8]} />
         <meshStandardMaterial color={accentColor} metalness={0.9} roughness={0.1} />
       </mesh>
     </group>
