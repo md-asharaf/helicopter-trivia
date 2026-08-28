@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useRef } from 'react'
+import { Component, Suspense, useMemo, useRef, type ReactNode } from 'react'
 import * as THREE from 'three'
 import { useLoader } from '@react-three/fiber'
 import { FBXLoader } from 'three-stdlib'
@@ -19,20 +19,73 @@ function getPointLightColor(isPlayer: boolean, crashed: boolean): string {
 }
 
 /**
+ * Universal Asset URL resolver for GitHub Pages, custom domains, and local dev.
+ */
+function getAssetUrl(relativePath: string): string {
+  const clean = relativePath.replace(/^\/+/, '')
+  const base = import.meta.env.BASE_URL ?? ''
+
+  // If Vite configured with full or subpath base like "/helicopter-trivia/"
+  if (base && base !== './' && base !== '/') {
+    const cleanBase = base.replace(/^\/+/, '').replace(/\/+$/, '')
+    return `${window.location.origin}/${cleanBase}/${clean}`
+  }
+
+  // Derive from window.location for GitHub Pages sub-paths
+  if (typeof window !== 'undefined') {
+    const path = window.location.pathname
+    // Ensure trailing slash on directory path
+    const dir = path.endsWith('/') ? path : `${path.substring(0, path.lastIndexOf('/') + 1)}`
+    const normalizedDir = dir === '' ? '/' : dir
+    return `${window.location.origin}${normalizedDir}${clean}`
+  }
+
+  return `./${clean}`
+}
+
+/**
+ * ErrorBoundary to prevent any uncaught asset loading errors from crashing the game
+ */
+class ModelErrorBoundary extends Component<
+  { fallback: ReactNode; children: ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { fallback: ReactNode; children: ReactNode }) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error: Error) {
+    console.warn('3D Model loading error (using fallback):', error.message)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback
+    }
+    return this.props.children
+  }
+}
+
+/**
  * 3D Helicopter Mesh loader using FBX.
- * Uses base-relative URL path for GitHub Pages and production sub-paths.
  */
 export function HelicopterMesh({ isPlayer = false, crashed = false }: HelicopterMeshProps) {
   return (
-    <Suspense fallback={<ProceduralHelicopterFallback isPlayer={isPlayer} />}>
-      <FBXHelicopterModel isPlayer={isPlayer} crashed={crashed} />
-    </Suspense>
+    <ModelErrorBoundary fallback={<ProceduralHelicopterFallback isPlayer={isPlayer} />}>
+      <Suspense fallback={<ProceduralHelicopterFallback isPlayer={isPlayer} />}>
+        <FBXHelicopterModel isPlayer={isPlayer} crashed={crashed} />
+      </Suspense>
+    </ModelErrorBoundary>
   )
 }
 
 function FBXHelicopterModel({ isPlayer, crashed }: { isPlayer: boolean; crashed: boolean }) {
-  const baseUrl = (import.meta.env.BASE_URL ?? './').replace(/\/$/, '')
-  const modelUrl = `${baseUrl}/models/helicopter/Helecopter.fbx`
+  const modelUrl = getAssetUrl('models/helicopter/Helecopter.fbx')
 
   const rawFbx = useLoader(FBXLoader, modelUrl)
   const groupRef = useRef<THREE.Group>(null)
@@ -59,7 +112,7 @@ function FBXHelicopterModel({ isPlayer, crashed }: { isPlayer: boolean; crashed:
       -center.z * targetScale
     )
 
-    // 180 degree rotation on X axis as requested
+    // 180 degree rotation on X axis
     clone.rotation.x = Math.PI
 
     // Automatically detect fuselage orientation and rotate forward facing -Z
