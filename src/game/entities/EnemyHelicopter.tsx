@@ -140,7 +140,6 @@ export const EnemyHelicopter = forwardRef<EnemyHelicopterHandle, EnemyHelicopter
 
         {!crashed && (
           <AnswerLabel
-            optionText={optionText}
             optionIndex={optionIndex}
             isCrashing={false}
           />

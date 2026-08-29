@@ -18,6 +18,11 @@ class InputManager {
   public aimX: number = 0
   public aimY: number = 0
 
+  setAim(aimX: number, aimY: number): void {
+    this.aimX = Math.max(-1, Math.min(1, aimX))
+    this.aimY = Math.max(-0.6, Math.min(1, aimY))
+  }
+
   private boundHandlers: Array<() => void> = []
 
   attach(): void {

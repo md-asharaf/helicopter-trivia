@@ -1,11 +1,14 @@
-import { Sky } from '@react-three/drei'
+import { Sky, Environment as DreiEnvironment } from '@react-three/drei'
 
 /**
- * Ultra-realistic high-altitude mountain sky & atmospheric haze environment.
+ * Ultra-realistic high-altitude mountain sky, HDRI ambient lighting & atmospheric haze.
  */
 export function Environment() {
   return (
     <>
+      {/* HDRI Environmental Reflections for PBR Metallic Surfaces & Water */}
+      <DreiEnvironment preset="sunset" environmentIntensity={0.65} />
+
       {/* Sky dome with warm natural sunlight scatter */}
       <Sky
         distance={450000}
@@ -21,7 +24,7 @@ export function Environment() {
       {/* Atmospheric depth haze fog */}
       <fog
         attach="fog"
-        args={['#a8d8f0', 70, 280]}
+        args={['#a8d8f0', 70, 300]}
       />
 
       {/* Distant majestic mountain ranges */}
@@ -46,27 +49,30 @@ function DistantAlpineMountains() {
 
   return (
     <group>
-      {peaks.map((p, i) => (
-        <group key={i} position={p.pos}>
-          {/* Mountain base rock */}
-          <mesh castShadow position={[0, p.scale[1] / 2, 0]}>
-            <coneGeometry args={[p.scale[0], p.scale[1], 6]} />
-            <meshStandardMaterial
-              color={p.isSnow ? '#323d42' : '#273e28'}
-              roughness={0.9}
-              metalness={0.05}
-            />
-          </mesh>
-
-          {/* Snow cap on majestic peaks */}
-          {p.isSnow && (
-            <mesh position={[0, p.scale[1] * 0.78, 0]}>
-              <coneGeometry args={[p.scale[0] * 0.38, p.scale[1] * 0.44, 6]} />
-              <meshStandardMaterial color="#f0f6fa" roughness={0.6} metalness={0.1} />
+      {peaks.map((p, i) => {
+        const peakRockColor = p.isSnow ? '#323d42' : '#273e28'
+        return (
+          <group key={i} position={p.pos}>
+            {/* Mountain base rock */}
+            <mesh castShadow position={[0, p.scale[1] / 2, 0]}>
+              <coneGeometry args={[p.scale[0], p.scale[1], 6]} />
+              <meshStandardMaterial
+                color={peakRockColor}
+                roughness={0.9}
+                metalness={0.05}
+              />
             </mesh>
-          )}
-        </group>
-      ))}
+
+            {/* Snow cap on majestic peaks */}
+            {p.isSnow && (
+              <mesh position={[0, p.scale[1] * 0.78, 0]}>
+                <coneGeometry args={[p.scale[0] * 0.38, p.scale[1] * 0.44, 6]} />
+                <meshStandardMaterial color="#f0f6fa" roughness={0.6} metalness={0.1} />
+              </mesh>
+            )}
+          </group>
+        )
+      })}
     </group>
   )
 }

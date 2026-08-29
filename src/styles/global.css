@@ -403,45 +403,174 @@ html, body {
   letter-spacing: 1px;
 }
 
-.answer-label__text {
-  font-family: var(--font-hud);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--white);
-  letter-spacing: 0.5px;
-}
-
-/* ─── Target Lock Badge ───────────────────────────────────────── */
-.target-lock-badge {
-  background: rgba(0, 15, 30, 0.85);
-  border: 1.5px solid var(--cyan);
-  border-radius: 6px;
-  padding: 4px 12px;
+/* ─── Target Callout Badge (3D above Enemy Helicopters) ───────── */
+.target-callout-badge {
+  background: rgba(3, 15, 28, 0.88);
+  border: 2px solid var(--amber);
+  border-radius: 8px;
+  padding: 4px 10px;
   display: flex;
   align-items: center;
   gap: 6px;
   backdrop-filter: blur(8px);
-  box-shadow: 0 0 18px rgba(0, 229, 255, 0.45), 0 0 4px var(--cyan);
+  box-shadow: 0 0 16px rgba(255, 140, 0, 0.5), 0 0 2px var(--amber);
   white-space: nowrap;
-  animation: lockPulse 1.2s ease-in-out infinite;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+  user-select: none;
 }
 
-@keyframes lockPulse {
-  0%, 100% { transform: scale(1); box-shadow: 0 0 16px rgba(0, 229, 255, 0.4); }
-  50% { transform: scale(1.05); box-shadow: 0 0 26px rgba(0, 229, 255, 0.8); }
-}
-
-.target-lock-badge__icon {
+.target-callout-badge__reticle {
   font-size: 13px;
+  color: var(--amber);
+  animation: spinReticle 4s linear infinite;
 }
 
-.target-lock-badge__text {
+@keyframes spinReticle {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.target-callout-badge__letter {
   font-family: var(--font-title);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 2px;
+  font-size: 16px;
+  font-weight: 900;
   color: #ffffff;
-  text-shadow: 0 0 8px var(--cyan);
+  letter-spacing: 1px;
+  text-shadow: 0 0 8px rgba(255, 140, 0, 0.8);
+}
+
+.target-callout-badge--crashing {
+  border-color: var(--red);
+  background: rgba(40, 0, 0, 0.9);
+  box-shadow: 0 0 20px rgba(255, 50, 50, 0.8);
+  animation: crashShake 0.1s infinite;
+}
+
+@keyframes crashShake {
+  0% { transform: translate(1px, 1px); }
+  50% { transform: translate(-1px, -1px); }
+  100% { transform: translate(1px, -1px); }
+}
+
+/* ─── Dedicated 4-Option HUD Board (2D Screen Overlay) ────────── */
+.hud-options-panel {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(94vw, 920px);
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.hud-options-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.hud-option-card {
+  background: rgba(6, 18, 32, 0.82);
+  border: 1.5px solid rgba(0, 229, 255, 0.22);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.hud-option-card:hover {
+  background: rgba(8, 28, 48, 0.92);
+  border-color: var(--cyan-dim);
+  transform: translateY(-2px);
+}
+
+.hud-option-card--locked {
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.22), rgba(0, 45, 75, 0.92));
+  border-color: var(--cyan);
+  box-shadow: 0 0 24px rgba(0, 229, 255, 0.35), 0 0 2px var(--cyan);
+  transform: translateY(-4px) scale(1.03);
+}
+
+.hud-option-card__badge {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  background: rgba(0, 229, 255, 0.15);
+  border: 1.5px solid var(--cyan-dim);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.hud-option-card--locked .hud-option-card__badge {
+  background: var(--cyan);
+  border-color: #ffffff;
+  box-shadow: 0 0 12px var(--cyan);
+}
+
+.hud-option-card__letter {
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--cyan);
+}
+
+.hud-option-card--locked .hud-option-card__letter {
+  color: #030f1c;
+}
+
+.hud-option-card__lock-icon {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 12px;
+  animation: pulseIcon 1s ease-in-out infinite;
+}
+
+@keyframes pulseIcon {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+}
+
+.hud-option-card__text {
+  font-family: var(--font-hud);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--white);
+  line-height: 1.25;
+  letter-spacing: 0.3px;
+  word-break: break-word;
+}
+
+.hud-option-card--locked .hud-option-card__text {
+  color: #ffffff;
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.6);
+}
+
+@media (max-width: 768px) {
+  .hud-options-panel {
+    bottom: 24px;
+    width: 96vw;
+  }
+  .hud-options-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+  .hud-option-card {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+  .hud-option-card__text {
+    font-size: 11px;
+  }
 }
 
 /* ─── Modal System ────────────────────────────────────────────── */

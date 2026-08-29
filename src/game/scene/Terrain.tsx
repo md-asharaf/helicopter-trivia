@@ -100,11 +100,13 @@ function buildTerrainData(size: number, subdivisions: number, maxHeight: number)
 }
 
 /**
- * Ultra-Realistic High-Speed Alpine Mountain Terrain & Streaming Forest.
+ * Ultra-Realistic High-Speed Alpine Mountain Terrain, Water River & Streaming Forest.
  */
 export function Terrain() {
   const mesh1Ref = useRef<THREE.Mesh>(null)
   const mesh2Ref = useRef<THREE.Mesh>(null)
+  const river1Ref = useRef<THREE.Mesh>(null)
+  const river2Ref = useRef<THREE.Mesh>(null)
   const forest1Ref = useRef<THREE.InstancedMesh>(null)
   const forest2Ref = useRef<THREE.InstancedMesh>(null)
 
@@ -124,6 +126,11 @@ export function Terrain() {
 
     mesh1Ref.current.position.z += CHASE_SPEED * delta
     mesh2Ref.current.position.z += CHASE_SPEED * delta
+
+    if (river1Ref.current && river2Ref.current) {
+      river1Ref.current.position.z = mesh1Ref.current.position.z
+      river2Ref.current.position.z = mesh2Ref.current.position.z
+    }
 
     if (mesh1Ref.current.position.z >= size) {
       mesh1Ref.current.position.z = mesh2Ref.current.position.z - size
@@ -179,6 +186,40 @@ export function Terrain() {
           roughness={0.75}
           metalness={0.08}
           flatShading={false}
+        />
+      </mesh>
+
+      {/* Specular Reflective Canyon River Tile 1 */}
+      <mesh
+        ref={river1Ref}
+        position={[0, -2.6, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        receiveShadow
+      >
+        <planeGeometry args={[26, size]} />
+        <meshStandardMaterial
+          color="#063d5c"
+          roughness={0.08}
+          metalness={0.92}
+          transparent
+          opacity={0.92}
+        />
+      </mesh>
+
+      {/* Specular Reflective Canyon River Tile 2 */}
+      <mesh
+        ref={river2Ref}
+        position={[0, -2.6, -size]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        receiveShadow
+      >
+        <planeGeometry args={[26, size]} />
+        <meshStandardMaterial
+          color="#063d5c"
+          roughness={0.08}
+          metalness={0.92}
+          transparent
+          opacity={0.92}
         />
       </mesh>
 

@@ -206,7 +206,12 @@ export function GameScene() {
       <Canvas
         shadows
         camera={{ fov: 54, near: 0.5, far: 400, position: [0, 19, 15] }}
-        gl={{ antialias: true, powerPreference: 'high-performance' }}
+        gl={{
+          antialias: true,
+          powerPreference: 'high-performance',
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.15,
+        }}
         dpr={[1, 1.5]}
       >
         <Physics gravity={[0, -9.81, 0]} paused={isPaused}>

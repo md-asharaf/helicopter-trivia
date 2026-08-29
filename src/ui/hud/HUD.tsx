@@ -1,5 +1,6 @@
 import { useGameState } from '@/game/GameContext'
 import { QuestionPanel } from './QuestionPanel'
+import { OptionsPanel } from './OptionsPanel'
 import { ScoreDisplay } from './ScoreDisplay'
 import { StreakDisplay } from './StreakDisplay'
 import { GameControls } from './GameControls'
@@ -43,6 +44,9 @@ export function HUD() {
         <div className="reticle-cross reticle-cross--h" />
         <div className="reticle-cross reticle-cross--v" />
       </div>
+
+      {/* Dedicated Tactical 4-Option HUD Board */}
+      <OptionsPanel />
 
       {/* Controls hint */}
       <div className="hud__controls-hint" aria-label="Control hints">
