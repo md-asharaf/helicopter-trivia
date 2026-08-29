@@ -1,11 +1,10 @@
 import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
-import { GAME_CONFIG } from '@/game/gameConfig'
 
-const CHASE_SPEED = 28.0
-const TREE_COUNT = 120
-const TERRAIN_ALTITUDE = -22.0
+const CHASE_SPEED = 32.0
+const TREE_COUNT = 140
+const TERRAIN_BASE_Y = -6.0
 
 interface TreeTransform {
   x: number
@@ -18,40 +17,81 @@ interface TerrainProps {
   paused?: boolean
 }
 
-function multiNoise(x: number, z: number): number {
-  let val = 0
-  val += Math.sin(x * 0.018 + 0.8) * Math.cos(z * 0.018 + 1.2) * 0.55
-  val += Math.sin(x * 0.042 + 2.1) * Math.cos(z * 0.038 + 0.4) * 0.28
-  val += Math.sin(x * 0.09 + 1.4) * Math.cos(z * 0.085 + 2.5) * 0.12
-  val += Math.sin(x * 0.18 + 3.2) * Math.cos(z * 0.17 + 1.1) * 0.05
-
-  // Smooth natural undulating valley
-  const normalized = (val + 1) / 2
-  return 0.15 + normalized * 0.85
+// Low-Poly Patchwork Palette (Matching the reference dogfight game)
+const PALETTE = {
+  ocean: [0.08, 0.28, 0.44] as [number, number, number],
+  sand: [0.82, 0.76, 0.56] as [number, number, number],
+  cropGreen1: [0.28, 0.48, 0.20] as [number, number, number],
+  cropGreen2: [0.22, 0.38, 0.16] as [number, number, number],
+  cropGreen3: [0.36, 0.56, 0.24] as [number, number, number],
+  cropGold: [0.55, 0.52, 0.26] as [number, number, number],
+  forest: [0.13, 0.26, 0.11] as [number, number, number],
+  cliffRock: [0.34, 0.36, 0.34] as [number, number, number],
+  riverWater: [0.12, 0.34, 0.48] as [number, number, number],
 }
 
-function getTerrainColor(normalized: number): [number, number, number] {
-  if (normalized < 0.35) {
-    // Deep alpine valley forest
-    return [0.09, 0.24, 0.12]
+function getElevationAndColor(x: number, z: number): { height: number; color: [number, number, number] } {
+  const islandHalfWidth = 62.0
+  const absX = Math.abs(x)
+
+  // 1. Ocean beyond island borders
+  if (absX > islandHalfWidth) {
+    const depth = Math.min(6.0, (absX - islandHalfWidth) * 0.8)
+    return { height: -depth, color: PALETTE.ocean }
   }
-  if (normalized < 0.65) {
-    // Evergreen rolling hills & meadows
-    return [
-      0.11 + (normalized - 0.35) * 0.10,
-      0.28 + (normalized - 0.35) * 0.14,
-      0.14 + (normalized - 0.35) * 0.08,
-    ]
+
+  // 2. Sandy beach coastlines
+  if (absX > islandHalfWidth - 4.5) {
+    return { height: 0.3, color: PALETTE.sand }
   }
-  if (normalized < 0.85) {
-    // Highland mountain slate & rocky ridges
-    return [0.24, 0.26, 0.28]
+
+  // 3. Central winding river channel
+  const riverCenter = Math.sin(z * 0.035) * 6.5
+  const distToRiver = Math.abs(x - riverCenter)
+
+  if (distToRiver < 3.2) {
+    return { height: -0.8, color: PALETTE.riverWater }
   }
-  // High mountain crest
-  return [0.32, 0.34, 0.36]
+  if (distToRiver < 5.5) {
+    return { height: 0.2, color: PALETTE.sand }
+  }
+
+  // 4. Left side: Elevated Mountain Ridge & Coastal Cliffs
+  if (x < -12) {
+    const ridgeNoise = Math.sin(x * 0.05 + 1.2) * Math.cos(z * 0.04) * 4.5 +
+                       Math.sin(x * 0.11 + z * 0.09) * 2.2
+    const cliffHeight = Math.max(1.5, 4.0 + ridgeNoise)
+    const isSteep = (cliffHeight > 6.5)
+    return {
+      height: cliffHeight,
+      color: isSteep ? PALETTE.cliffRock : PALETTE.cropGreen2,
+    }
+  }
+
+  // 5. Right side: Patchwork Agricultural Farmland
+  const fieldGridX = Math.floor((x + 100) / 12)
+  const fieldGridZ = Math.floor((z + 1000) / 14)
+  const plotSeed = Math.abs(Math.sin(fieldGridX * 19.3 + fieldGridZ * 71.7))
+
+  const farmNoise = Math.sin(x * 0.03) * Math.cos(z * 0.025) * 1.8 +
+                    Math.sin(x * 0.08 + z * 0.07) * 0.8
+  const farmHeight = Math.max(0.6, 2.2 + farmNoise)
+
+  let plotColor = PALETTE.cropGreen1
+  if (plotSeed < 0.25) {
+    plotColor = PALETTE.cropGreen2
+  } else if (plotSeed < 0.50) {
+    plotColor = PALETTE.cropGreen3
+  } else if (plotSeed < 0.75) {
+    plotColor = PALETTE.cropGold
+  } else {
+    plotColor = PALETTE.forest
+  }
+
+  return { height: farmHeight, color: plotColor }
 }
 
-function buildTerrainData(size: number, subdivisions: number, maxHeight: number) {
+function buildCoastalIslandData(size: number, subdivisions: number) {
   const geo = new THREE.PlaneGeometry(size, size, subdivisions, subdivisions)
   geo.rotateX(-Math.PI / 2)
 
@@ -62,29 +102,26 @@ function buildTerrainData(size: number, subdivisions: number, maxHeight: number)
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i)
     const z = pos.getZ(i)
-    const n = multiNoise(x, z)
-    const height = n * maxHeight
 
+    const { height, color } = getElevationAndColor(x, z)
     pos.setY(i, height)
+    colors.push(color[0], color[1], color[2])
 
-    const normalized = height / maxHeight
-    const [r, g, b] = getTerrainColor(normalized)
-    colors.push(r, g, b)
-
-    // Pseudo-random placement for alpine pine trees
-    const pseudoRand = Math.abs(Math.sin(x * 12.9898 + z * 78.233))
+    // Place low-poly pine trees in forest clusters
+    const absX = Math.abs(x)
+    const treePseudo = Math.abs(Math.sin(x * 37.1 + z * 83.9))
     if (
-      normalized > 0.20 &&
-      normalized < 0.70 &&
-      Math.abs(x) > 6 &&
-      validTreePositions.length < TREE_COUNT &&
-      pseudoRand < 0.12
+      height > 1.2 &&
+      height < 7.5 &&
+      absX < 56 &&
+      treePseudo < 0.11 &&
+      validTreePositions.length < TREE_COUNT
     ) {
       validTreePositions.push({
         x,
         y: height,
         z,
-        scale: 1.0 + (pseudoRand * 10 % 1) * 0.8,
+        scale: 0.9 + (treePseudo * 10 % 1) * 0.6,
       })
     }
   }
@@ -96,8 +133,8 @@ function buildTerrainData(size: number, subdivisions: number, maxHeight: number)
 }
 
 /**
- * Ultra-Realistic High-Altitude Alpine Mountain Valley Terrain & Forest.
- * Helicopters fly high in the air (35-45 units altitude) with bird's-eye valley view.
+ * Wings / War Brokers Dogfight Coastal Island & Ocean World.
+ * Flat-shaded patchwork agricultural fields, winding river, coastal cliffs, and vast ocean.
  */
 export function Terrain({ paused = false }: TerrainProps) {
   const mesh1Ref = useRef<THREE.Mesh>(null)
@@ -105,13 +142,12 @@ export function Terrain({ paused = false }: TerrainProps) {
   const forest1Ref = useRef<THREE.InstancedMesh>(null)
   const forest2Ref = useRef<THREE.InstancedMesh>(null)
 
-  const size = GAME_CONFIG.world.terrainSize
-  const subdivisions = GAME_CONFIG.world.terrainSubdivisions
-  const maxHeight = 12.0
+  const size = 320
+  const subdivisions = 80
 
   const { geometry, treeTransforms } = useMemo(
-    () => buildTerrainData(size, subdivisions, maxHeight),
-    [size, subdivisions, maxHeight]
+    () => buildCoastalIslandData(size, subdivisions),
+    [size, subdivisions]
   )
 
   const dummy = useMemo(() => new THREE.Object3D(), [])
@@ -150,62 +186,66 @@ export function Terrain({ paused = false }: TerrainProps) {
 
   return (
     <group>
-      {/* Solid Continuous Tile 1: Alpine Terrain */}
+      {/* Tile 1: Patchwork Farmland & Coastal Cliffs Island */}
       <mesh
         ref={mesh1Ref}
         geometry={geometry}
-        position={[0, TERRAIN_ALTITUDE, 0]}
+        position={[0, TERRAIN_BASE_Y, 0]}
         receiveShadow
       >
         <meshStandardMaterial
           vertexColors
-          roughness={0.88}
+          roughness={0.72}
           metalness={0.04}
-          flatShading={false}
+          flatShading={true}
         />
       </mesh>
 
-      {/* Solid Continuous Tile 2: Alpine Terrain */}
+      {/* Tile 2: Patchwork Farmland & Coastal Cliffs Island */}
       <mesh
         ref={mesh2Ref}
         geometry={geometry}
-        position={[0, TERRAIN_ALTITUDE, -size]}
+        position={[0, TERRAIN_BASE_Y, -size]}
         receiveShadow
       >
         <meshStandardMaterial
           vertexColors
-          roughness={0.88}
+          roughness={0.72}
           metalness={0.04}
-          flatShading={false}
+          flatShading={true}
         />
       </mesh>
 
-      {/* Solid Bedrock Base Underneath */}
-      <mesh position={[0, TERRAIN_ALTITUDE - 1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[size * 2, size * 2]} />
-        <meshStandardMaterial color="#0c1a0e" roughness={0.95} />
+      {/* Endless Deep Blue Ocean Plane with Specular Sunlight Reflection */}
+      <mesh position={[0, TERRAIN_BASE_Y - 0.2, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[1200, 1200]} />
+        <meshStandardMaterial
+          color="#113d60"
+          roughness={0.12}
+          metalness={0.88}
+        />
       </mesh>
 
-      {/* Forest Trees Tile 1 */}
+      {/* Forest Trees Tile 1 (Low-poly pine clusters) */}
       <instancedMesh
         ref={forest1Ref}
         args={[undefined, undefined, treeTransforms.length]}
-        position={[0, TERRAIN_ALTITUDE, 0]}
+        position={[0, TERRAIN_BASE_Y, 0]}
         castShadow
       >
-        <coneGeometry args={[1.2, 4.5, 6]} />
-        <meshStandardMaterial color="#0e2311" roughness={0.92} />
+        <coneGeometry args={[1.2, 3.8, 5]} />
+        <meshStandardMaterial color="#1a3b16" roughness={0.85} flatShading={true} />
       </instancedMesh>
 
-      {/* Forest Trees Tile 2 */}
+      {/* Forest Trees Tile 2 (Low-poly pine clusters) */}
       <instancedMesh
         ref={forest2Ref}
         args={[undefined, undefined, treeTransforms.length]}
-        position={[0, TERRAIN_ALTITUDE, -size]}
+        position={[0, TERRAIN_BASE_Y, -size]}
         castShadow
       >
-        <coneGeometry args={[1.2, 4.5, 6]} />
-        <meshStandardMaterial color="#0e2311" roughness={0.92} />
+        <coneGeometry args={[1.2, 3.8, 5]} />
+        <meshStandardMaterial color="#1a3b16" roughness={0.85} flatShading={true} />
       </instancedMesh>
     </group>
   )

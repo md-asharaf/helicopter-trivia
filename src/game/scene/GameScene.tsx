@@ -14,6 +14,7 @@ import { Lighting } from './Lighting'
 import { Environment } from './Environment'
 import { Terrain } from './Terrain'
 import { Clouds } from './Clouds'
+import { SpeedLines } from './SpeedLines'
 import { CameraRig } from './CameraRig'
 import type { BombPhase, HelicopterOption } from '@/game/gameTypes'
 
@@ -231,6 +232,7 @@ export function GameScene() {
           <Environment />
           <Terrain paused={isPaused} />
           <Clouds paused={isPaused} />
+          <SpeedLines paused={isPaused} />
 
           {/* Player helicopter */}
           <PlayerHelicopter ref={playerRef} paused={isPaused} />

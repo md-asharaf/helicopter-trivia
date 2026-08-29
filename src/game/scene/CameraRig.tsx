@@ -83,11 +83,11 @@ export function CameraRig({ playerRef, bombPosition, impactPosition, shake, paus
         break
       }
       default: {
-        // Normal Chase Cam
+        // Elevated dogfight chase camera (matching reference game)
         desiredPos = new THREE.Vector3(
           playerPos.x * 0.55,
-          playerPos.y + 3.6,
-          playerPos.z + 14.5
+          playerPos.y + 4.2,
+          playerPos.z + 15.0
         )
         break
       }
