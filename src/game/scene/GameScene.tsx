@@ -54,20 +54,32 @@ export function GameScene() {
 
   const spawnPositions = useMemo(() => BASE_SPAWN_POSITIONS, [])
 
-  const isPaused = state.phase === 'paused' || state.phase === 'resolving' ||
-    state.phase === 'game-over' || state.phase === 'hint'
-  const isPlaying = state.phase === 'playing'
+  const isPaused =
+    state.phase !== 'playing' && state.phase !== 'bombing' ||
+    state.confirmPending !== null ||
+    state.hintConfirmVisible ||
+    state.hintVisible
+
+  const isPlaying = state.phase === 'playing' && !isPaused
 
   // Attach input manager & audio
   useEffect(() => {
     inputManager.attach()
     audioManager.init()
-    audioManager.play('rotorLoop')
     return () => {
       inputManager.detach()
       audioManager.stop('rotorLoop')
     }
   }, [])
+
+  // Sync rotor audio with pause state
+  useEffect(() => {
+    if (isPaused) {
+      audioManager.stop('rotorLoop')
+    } else {
+      audioManager.play('rotorLoop')
+    }
+  }, [isPaused])
 
   useEffect(() => {
     inputManager.setPaused(isPaused)
@@ -217,8 +229,8 @@ export function GameScene() {
         <Physics gravity={[0, -9.81, 0]} paused={isPaused}>
           <Lighting />
           <Environment />
-          <Terrain />
-          <Clouds />
+          <Terrain paused={isPaused} />
+          <Clouds paused={isPaused} />
 
           {/* Player helicopter */}
           <PlayerHelicopter ref={playerRef} paused={isPaused} />
@@ -229,6 +241,7 @@ export function GameScene() {
             bombPosition={bombPosition}
             impactPosition={impactPosition}
             shake={shake}
+            paused={isPaused}
           />
 
           {/* 4 Front Enemy Helicopters */}

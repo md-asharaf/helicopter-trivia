@@ -9,6 +9,10 @@ interface CloudData {
   rotationY: number
 }
 
+interface CloudsProps {
+  paused?: boolean
+}
+
 const CLOUD_COUNT = 16
 
 function buildCloudFleet(): CloudData[] {
@@ -36,13 +40,15 @@ function buildCloudFleet(): CloudData[] {
 /**
  * High-Altitude Stratocumulus Clouds.
  * Drifts high in the sky (y: 75-125) with soft atmospheric translucency.
+ * Freezes motion when paused.
  */
-export function Clouds() {
+export function Clouds({ paused = false }: CloudsProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null)
   const dummy = useMemo(() => new THREE.Object3D(), [])
   const clouds = useMemo(() => buildCloudFleet(), [])
 
   useFrame((_state, delta) => {
+    if (paused) return
     if (!meshRef.current) return
 
     clouds.forEach((cloud, i) => {

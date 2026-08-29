@@ -11,6 +11,7 @@ interface CameraRigProps {
   bombPosition: THREE.Vector3 | null
   impactPosition: THREE.Vector3 | null
   shake: boolean
+  paused?: boolean
 }
 
 /**
@@ -18,7 +19,7 @@ interface CameraRigProps {
  * Rides directly behind the chase helicopter in hot pursuit.
  * Dynamic lateral tracking, banking roll, and wind turbulence.
  */
-export function CameraRig({ playerRef, bombPosition, impactPosition, shake }: CameraRigProps) {
+export function CameraRig({ playerRef, bombPosition, impactPosition, shake, paused = false }: CameraRigProps) {
   const { camera } = useThree()
   const mode = useRef<CameraMode>('following')
   const shakeTimer = useRef(0)
@@ -46,7 +47,8 @@ export function CameraRig({ playerRef, bombPosition, impactPosition, shake }: Ca
     }
   }, [shake])
 
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
+    if (paused) return
     const player = playerRef.current
     if (!player) return
 
@@ -58,60 +60,57 @@ export function CameraRig({ playerRef, bombPosition, impactPosition, shake }: Ca
     switch (mode.current) {
       case 'bombing': {
         if (bombPosition) {
-          const midpoint = playerPos.clone().lerp(bombPosition, 0.45)
           desiredPos = new THREE.Vector3(
-            midpoint.x * 0.7,
-            Math.max(playerPos.y + 4.5, midpoint.y + 6),
-            midpoint.z + 10.0,
+            bombPosition.x * 0.4,
+            bombPosition.y + 4.5,
+            bombPosition.z + 12
           )
-          targetPos.current.lerp(desiredPos, bombFollowLag * 1.5)
         } else {
-          mode.current = 'following'
-          desiredPos = new THREE.Vector3(playerPos.x * 0.7, playerPos.y + 4.5, playerPos.z + 13.5)
-          targetPos.current.lerp(desiredPos, followLag)
+          desiredPos = new THREE.Vector3(playerPos.x * 0.6, playerPos.y + 3.8, playerPos.z + 14)
         }
         break
       }
       case 'impact': {
         if (impactPosition) {
-          desiredPos = impactPosition.clone().add(new THREE.Vector3(0, 8, 12))
-          targetPos.current.lerp(desiredPos, 0.08)
+          desiredPos = new THREE.Vector3(
+            impactPosition.x * 0.3,
+            impactPosition.y + 6,
+            impactPosition.z + 16
+          )
+        } else {
+          desiredPos = new THREE.Vector3(playerPos.x * 0.6, playerPos.y + 3.8, playerPos.z + 14)
         }
         break
       }
       default: {
-        // Close-up arcade chase camera
+        // Normal Chase Cam
         desiredPos = new THREE.Vector3(
-          playerPos.x * 0.75,
-          playerPos.y + 3.4,
-          playerPos.z + 10.0,
+          playerPos.x * 0.55,
+          playerPos.y + 3.6,
+          playerPos.z + 14.5
         )
-        targetPos.current.lerp(desiredPos, followLag * 1.8)
         break
       }
     }
 
+    const lag = mode.current === 'bombing' ? bombFollowLag : followLag
+    targetPos.current.lerp(desiredPos, delta * lag)
     camera.position.copy(targetPos.current)
 
-    // Camera shake on bomb release / impact
+    // Look at target: either bomb or ahead into the horizon
+    const lookTarget = mode.current === 'bombing' && bombPosition
+      ? bombPosition
+      : new THREE.Vector3(playerPos.x * 0.3, playerPos.y + 0.5, -45)
+
+    camera.lookAt(lookTarget)
+
+    // Screen Shake effect
     if (shakeTimer.current > 0) {
       shakeTimer.current -= delta
       const magnitude = shakeMagnitude * (shakeTimer.current / (GAME_CONFIG.camera.shakeDuration / 1000))
       camera.position.x += (Math.random() - 0.5) * magnitude
       camera.position.y += (Math.random() - 0.5) * magnitude * 0.5
-      camera.position.z += (Math.random() - 0.5) * magnitude
     }
-
-    // Subtle continuous flight turbulence
-    const t = state.clock.getElapsedTime()
-    camera.position.y += Math.sin(t * 4.5) * 0.04
-
-    // Look forward down the chase highway towards the 4 enemy helicopters
-    const lookTarget = new THREE.Vector3(playerPos.x * 0.35, playerPos.y - 0.3, playerPos.z - 30)
-    camera.lookAt(lookTarget)
-
-    // Dynamic camera roll into chase turns
-    camera.rotation.z = -playerPos.x * 0.008
   })
 
   return null

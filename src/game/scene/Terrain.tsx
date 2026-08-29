@@ -13,6 +13,10 @@ interface TreeTransform {
   scale: number
 }
 
+interface TerrainProps {
+  paused?: boolean
+}
+
 function multiNoise(x: number, z: number): number {
   let val = 0
   val += Math.sin(x * 0.025 + 0.8) * Math.cos(z * 0.025 + 1.2) * 0.55
@@ -97,8 +101,9 @@ function buildTerrainData(size: number, subdivisions: number, maxHeight: number)
 
 /**
  * Ultra-Realistic High-Speed Alpine Mountain Terrain, Water River & Streaming Forest.
+ * Strictly pauses scrolling when paused or overlay is open.
  */
-export function Terrain() {
+export function Terrain({ paused = false }: TerrainProps) {
   const mesh1Ref = useRef<THREE.Mesh>(null)
   const mesh2Ref = useRef<THREE.Mesh>(null)
   const river1Ref = useRef<THREE.Mesh>(null)
@@ -118,6 +123,7 @@ export function Terrain() {
   const dummy = useMemo(() => new THREE.Object3D(), [])
 
   useFrame((_state, delta) => {
+    if (paused) return
     if (!mesh1Ref.current || !mesh2Ref.current) return
 
     mesh1Ref.current.position.z += CHASE_SPEED * delta

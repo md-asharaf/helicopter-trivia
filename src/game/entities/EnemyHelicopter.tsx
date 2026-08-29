@@ -46,7 +46,7 @@ export const EnemyHelicopter = forwardRef<EnemyHelicopterHandle, EnemyHelicopter
     }))
 
     useFrame((state, delta) => {
-      if (!groupRef.current) return
+      if (!groupRef.current || paused) return
 
       if (crashed) {
         // === SPECTACULAR BURNING CRASH DIVE ===
