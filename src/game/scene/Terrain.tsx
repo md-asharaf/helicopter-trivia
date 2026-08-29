@@ -4,7 +4,7 @@ import { useFrame } from '@react-three/fiber'
 import { GAME_CONFIG } from '@/game/gameConfig'
 
 const CHASE_SPEED = 28.0
-const TREE_COUNT = 80
+const TREE_COUNT = 90
 
 interface TreeTransform {
   x: number
@@ -21,38 +21,34 @@ function multiNoise(x: number, z: number): number {
   val += Math.sin(x * 0.25 + 3.2) * Math.cos(z * 0.24 + 1.1) * 0.05
 
   // Canyon carve down the middle
-  const riverDist = Math.abs(x) / 35.0
+  const riverDist = Math.abs(x) / 32.0
   const riverFactor = Math.min(1.0, riverDist)
-  return ((val + 1) / 2) * (0.3 + 0.7 * riverFactor)
+  return ((val + 1) / 2) * (0.35 + 0.65 * riverFactor)
 }
 
 function getTerrainColor(normalized: number): [number, number, number] {
-  if (normalized < 0.12) {
-    // Alpine river channel
-    return [0.08, 0.42, 0.62]
+  if (normalized < 0.14) {
+    // Riverbed sand & pebbles
+    return [0.36, 0.38, 0.32]
   }
-  if (normalized < 0.24) {
-    // Riverbed sand / gravel
-    return [0.62, 0.58, 0.44]
+  if (normalized < 0.35) {
+    // Rich green valley meadows
+    return [0.12, 0.36, 0.16]
   }
-  if (normalized < 0.55) {
-    // Lush green valley / forest meadows
+  if (normalized < 0.65) {
+    // Evergreen alpine hillside
     return [
-      0.16 + (normalized - 0.24) * 0.15,
-      0.48 + (normalized - 0.24) * 0.25,
-      0.14 + (normalized - 0.24) * 0.10,
+      0.15 + (normalized - 0.35) * 0.12,
+      0.34 + (normalized - 0.35) * 0.14,
+      0.18 + (normalized - 0.35) * 0.10,
     ]
   }
-  if (normalized < 0.8) {
-    // Highland rocky slope
-    return [
-      0.38 + (normalized - 0.55) * 0.25,
-      0.36 + (normalized - 0.55) * 0.20,
-      0.30 + (normalized - 0.55) * 0.18,
-    ]
+  if (normalized < 0.85) {
+    // Rocky mountain slate
+    return [0.26, 0.30, 0.32]
   }
-  // Snow-kissed mountain peaks
-  return [0.85, 0.90, 0.94]
+  // High mountain crest
+  return [0.32, 0.35, 0.38]
 }
 
 function buildTerrainData(size: number, subdivisions: number, maxHeight: number) {
@@ -78,17 +74,17 @@ function buildTerrainData(size: number, subdivisions: number, maxHeight: number)
     // Deterministic pseudo-random placement for trees based on coordinates
     const pseudoRand = Math.abs(Math.sin(x * 12.9898 + z * 78.233))
     if (
-      normalized > 0.22 &&
-      normalized < 0.65 &&
-      Math.abs(x) > 6 &&
+      normalized > 0.18 &&
+      normalized < 0.70 &&
+      Math.abs(x) > 5.5 &&
       validTreePositions.length < TREE_COUNT &&
-      pseudoRand < 0.08
+      pseudoRand < 0.10
     ) {
       validTreePositions.push({
         x,
         y: height,
         z,
-        scale: 0.7 + (pseudoRand * 10 % 1) * 0.6,
+        scale: 0.75 + (pseudoRand * 10 % 1) * 0.65,
       })
     }
   }
@@ -112,7 +108,7 @@ export function Terrain() {
 
   const size = GAME_CONFIG.world.terrainSize
   const subdivisions = GAME_CONFIG.world.terrainSubdivisions
-  const maxHeight = 16.0
+  const maxHeight = 15.0
 
   const { geometry, treeTransforms } = useMemo(
     () => buildTerrainData(size, subdivisions, maxHeight),
@@ -168,8 +164,8 @@ export function Terrain() {
       >
         <meshStandardMaterial
           vertexColors
-          roughness={0.75}
-          metalness={0.08}
+          roughness={0.82}
+          metalness={0.05}
           flatShading={false}
         />
       </mesh>
@@ -183,8 +179,8 @@ export function Terrain() {
       >
         <meshStandardMaterial
           vertexColors
-          roughness={0.75}
-          metalness={0.08}
+          roughness={0.82}
+          metalness={0.05}
           flatShading={false}
         />
       </mesh>
@@ -192,34 +188,34 @@ export function Terrain() {
       {/* Specular Reflective Canyon River Tile 1 */}
       <mesh
         ref={river1Ref}
-        position={[0, -2.6, 0]}
+        position={[0, -2.4, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
         receiveShadow
       >
-        <planeGeometry args={[26, size]} />
+        <planeGeometry args={[20, size]} />
         <meshStandardMaterial
-          color="#063d5c"
-          roughness={0.08}
-          metalness={0.92}
+          color="#062e45"
+          roughness={0.12}
+          metalness={0.88}
           transparent
-          opacity={0.92}
+          opacity={0.90}
         />
       </mesh>
 
       {/* Specular Reflective Canyon River Tile 2 */}
       <mesh
         ref={river2Ref}
-        position={[0, -2.6, -size]}
+        position={[0, -2.4, -size]}
         rotation={[-Math.PI / 2, 0, 0]}
         receiveShadow
       >
-        <planeGeometry args={[26, size]} />
+        <planeGeometry args={[20, size]} />
         <meshStandardMaterial
-          color="#063d5c"
-          roughness={0.08}
-          metalness={0.92}
+          color="#062e45"
+          roughness={0.12}
+          metalness={0.88}
           transparent
-          opacity={0.92}
+          opacity={0.90}
         />
       </mesh>
 
@@ -230,8 +226,8 @@ export function Terrain() {
         position={[0, -4, 0]}
         castShadow
       >
-        <coneGeometry args={[1.2, 4.2, 5]} />
-        <meshStandardMaterial color="#1a421b" roughness={0.9} />
+        <coneGeometry args={[1.1, 4.0, 6]} />
+        <meshStandardMaterial color="#122d14" roughness={0.92} />
       </instancedMesh>
 
       {/* Forest Trees Tile 2 */}
@@ -241,8 +237,8 @@ export function Terrain() {
         position={[0, -4, -size]}
         castShadow
       >
-        <coneGeometry args={[1.2, 4.2, 5]} />
-        <meshStandardMaterial color="#1a421b" roughness={0.9} />
+        <coneGeometry args={[1.1, 4.0, 6]} />
+        <meshStandardMaterial color="#122d14" roughness={0.92} />
       </instancedMesh>
     </group>
   )

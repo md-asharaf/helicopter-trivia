@@ -7,24 +7,24 @@ export function Environment() {
   return (
     <>
       {/* HDRI Environmental Reflections for PBR Metallic Surfaces & Water */}
-      <DreiEnvironment preset="sunset" environmentIntensity={0.65} />
+      <DreiEnvironment preset="sunset" environmentIntensity={0.6} />
 
       {/* Sky dome with warm natural sunlight scatter */}
       <Sky
         distance={450000}
-        sunPosition={[70, 45, -60]}
+        sunPosition={[80, 50, -70]}
         inclination={0.52}
         azimuth={0.28}
-        turbidity={6.5}
-        rayleigh={0.65}
-        mieCoefficient={0.006}
-        mieDirectionalG={0.82}
+        turbidity={5.5}
+        rayleigh={0.5}
+        mieCoefficient={0.005}
+        mieDirectionalG={0.85}
       />
 
       {/* Atmospheric depth haze fog */}
       <fog
         attach="fog"
-        args={['#a8d8f0', 70, 300]}
+        args={['#9fcbe4', 90, 320]}
       />
 
       {/* Distant majestic mountain ranges */}
@@ -35,39 +35,45 @@ export function Environment() {
 
 function DistantAlpineMountains() {
   const peaks: Array<{ pos: [number, number, number]; scale: [number, number, number]; isSnow: boolean }> = [
-    { pos: [-160, -6, -200], scale: [48, 55, 36], isSnow: true },
-    { pos: [-90, -6, -220], scale: [55, 68, 42], isSnow: true },
-    { pos: [10, -6, -240], scale: [62, 74, 48], isSnow: true },
-    { pos: [110, -6, -210], scale: [52, 60, 38], isSnow: true },
-    { pos: [180, -6, -190], scale: [45, 52, 34], isSnow: true },
+    { pos: [-170, -4, -220], scale: [60, 68, 48], isSnow: true },
+    { pos: [-95, -4, -240], scale: [70, 82, 55], isSnow: true },
+    { pos: [15, -4, -260], scale: [80, 92, 60], isSnow: true },
+    { pos: [120, -4, -230], scale: [65, 75, 50], isSnow: true },
+    { pos: [195, -4, -210], scale: [58, 65, 45], isSnow: true },
     // Flanking mountain ridges
-    { pos: [-190, -6, -90], scale: [42, 48, 38], isSnow: false },
-    { pos: [190, -6, -80], scale: [40, 46, 36], isSnow: false },
-    { pos: [-200, -6, 40], scale: [44, 42, 40], isSnow: false },
-    { pos: [200, -6, 50], scale: [42, 44, 38], isSnow: false },
+    { pos: [-210, -4, -110], scale: [50, 56, 42], isSnow: false },
+    { pos: [210, -4, -100], scale: [48, 54, 40], isSnow: false },
+    { pos: [-220, -4, 30], scale: [52, 50, 44], isSnow: false },
+    { pos: [220, -4, 40], scale: [50, 52, 42], isSnow: false },
   ]
 
   return (
     <group>
       {peaks.map((p, i) => {
-        const peakRockColor = p.isSnow ? '#323d42' : '#273e28'
+        const peakRockColor = p.isSnow ? '#283236' : '#1c2e22'
         return (
           <group key={i} position={p.pos}>
-            {/* Mountain base rock */}
-            <mesh castShadow position={[0, p.scale[1] / 2, 0]}>
-              <coneGeometry args={[p.scale[0], p.scale[1], 6]} />
+            {/* Mountain base rock with smooth natural silhouette */}
+            <mesh position={[0, p.scale[1] / 2, 0]}>
+              <coneGeometry args={[p.scale[0], p.scale[1], 18]} />
               <meshStandardMaterial
                 color={peakRockColor}
-                roughness={0.9}
-                metalness={0.05}
+                roughness={0.92}
+                metalness={0.04}
+                flatShading={false}
               />
             </mesh>
 
-            {/* Snow cap on majestic peaks */}
+            {/* Natural snow caps on high peaks */}
             {p.isSnow && (
-              <mesh position={[0, p.scale[1] * 0.78, 0]}>
-                <coneGeometry args={[p.scale[0] * 0.38, p.scale[1] * 0.44, 6]} />
-                <meshStandardMaterial color="#f0f6fa" roughness={0.6} metalness={0.1} />
+              <mesh position={[0, p.scale[1] * 0.76, 0]}>
+                <coneGeometry args={[p.scale[0] * 0.36, p.scale[1] * 0.48, 18]} />
+                <meshStandardMaterial
+                  color="#edf4fa"
+                  roughness={0.65}
+                  metalness={0.08}
+                  flatShading={false}
+                />
               </mesh>
             )}
           </group>
