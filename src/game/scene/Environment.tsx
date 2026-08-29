@@ -1,23 +1,28 @@
-import { Environment as DreiEnvironment } from '@react-three/drei'
+import { Sky } from '@react-three/drei'
 
 /**
- * Photorealistic 360° Real-World Aerial Environment & HDR Lighting.
- * Uses real-world high-altitude panoramic skybox and PBR lighting reflections.
+ * Cinematic High-Altitude Aerial Military Sky & Atmospheric Environment.
+ * Clean, majestic open sky with warm sunlight and horizon haze.
  */
 export function Environment() {
   return (
     <>
-      {/* 360° Real-World HDR Aerial Skybox & Environmental PBR Reflections */}
-      <DreiEnvironment
-        preset="sunset"
-        background
-        environmentIntensity={0.85}
+      {/* Physical Rayleigh/Mie Sky Dome with Sunset Sun Angle */}
+      <Sky
+        distance={450000}
+        sunPosition={[120, 38, -100]}
+        inclination={0.55}
+        azimuth={0.25}
+        turbidity={4.0}
+        rayleigh={0.55}
+        mieCoefficient={0.005}
+        mieDirectionalG={0.88}
       />
 
-      {/* Atmospheric High-Altitude Depth Fog blending with the horizon */}
+      {/* High-Altitude Horizon Atmospheric Fog */}
       <fog
         attach="fog"
-        args={['#203244', 110, 420]}
+        args={['#7eb5d6', 160, 480]}
       />
     </>
   )
