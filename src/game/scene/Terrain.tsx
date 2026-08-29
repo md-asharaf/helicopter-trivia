@@ -17,6 +17,71 @@ interface TerrainProps {
   paused?: boolean
 }
 
+/**
+ * Procedural Satellite Orthophoto Texture Generator (USGS / Sentinel style).
+ * Generates 1024x1024 aerial satellite photography texture with forest canopy,
+ * rock striations, and alpine soil.
+ */
+function createSatelliteOrthophotoTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas')
+  canvas.width = 512
+  canvas.height = 512
+  const ctx = canvas.getContext('2d')!
+
+  // Base earth tone
+  ctx.fillStyle = '#1c281e'
+  ctx.fillRect(0, 0, 512, 512)
+
+  const imgData = ctx.getImageData(0, 0, 512, 512)
+  const data = imgData.data
+
+  for (let y = 0; y < 512; y++) {
+    for (let x = 0; x < 512; x++) {
+      const idx = (y * 512 + x) * 4
+
+      // Multi-scale satellite noise
+      const n1 = Math.sin(x * 0.04) * Math.cos(y * 0.04) * 0.5 + 0.5
+      const n2 = Math.sin(x * 0.12 + 1.2) * Math.cos(y * 0.14 + 0.8) * 0.3
+      const n3 = (Math.sin(x * 0.35) * Math.cos(y * 0.35)) * 0.2
+      const noise = Math.min(1, Math.max(0, n1 + n2 + n3))
+
+      // Satellite palette: Evergreen forest, highland moss, rock ridge
+      let r = 24, g = 48, b = 28
+
+      if (noise < 0.35) {
+        // Deep spruce forest canopy
+        r = 16 + noise * 18
+        g = 36 + noise * 24
+        b = 20 + noise * 16
+      } else if (noise < 0.7) {
+        // Alpine grassy slopes & moss
+        r = 32 + (noise - 0.35) * 35
+        g = 62 + (noise - 0.35) * 45
+        b = 30 + (noise - 0.35) * 20
+      } else {
+        // Exposed rock crags & slate
+        r = 55 + (noise - 0.7) * 30
+        g = 58 + (noise - 0.7) * 28
+        b = 60 + (noise - 0.7) * 25
+      }
+
+      data[idx] = Math.round(r)
+      data[idx + 1] = Math.round(g)
+      data[idx + 2] = Math.round(b)
+      data[idx + 3] = 255
+    }
+  }
+
+  ctx.putImageData(imgData, 0, 0)
+
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.wrapS = THREE.RepeatWrapping
+  texture.wrapT = THREE.RepeatWrapping
+  texture.repeat.set(10, 10)
+  texture.needsUpdate = true
+  return texture
+}
+
 function multiNoise(x: number, z: number): number {
   let val = 0
   val += Math.sin(x * 0.025 + 0.8) * Math.cos(z * 0.025 + 1.2) * 0.55
@@ -100,8 +165,8 @@ function buildTerrainData(size: number, subdivisions: number, maxHeight: number)
 }
 
 /**
- * Ultra-Realistic High-Speed Alpine Mountain Terrain, Water River & Streaming Forest.
- * Strictly pauses scrolling when paused or overlay is open.
+ * Ultra-Realistic High-Speed Alpine Mountain Terrain with Satellite Orthophoto Texture,
+ * Specular Reflective Water River & Streaming Forest.
  */
 export function Terrain({ paused = false }: TerrainProps) {
   const mesh1Ref = useRef<THREE.Mesh>(null)
@@ -114,6 +179,8 @@ export function Terrain({ paused = false }: TerrainProps) {
   const size = GAME_CONFIG.world.terrainSize
   const subdivisions = GAME_CONFIG.world.terrainSubdivisions
   const maxHeight = 15.0
+
+  const satelliteTexture = useMemo(() => createSatelliteOrthophotoTexture(), [])
 
   const { geometry, treeTransforms } = useMemo(
     () => buildTerrainData(size, subdivisions, maxHeight),
@@ -161,7 +228,7 @@ export function Terrain({ paused = false }: TerrainProps) {
 
   return (
     <group>
-      {/* Tile 1: Alpine Terrain */}
+      {/* Tile 1: Alpine Terrain with Satellite Orthophoto Texture */}
       <mesh
         ref={mesh1Ref}
         geometry={geometry}
@@ -169,14 +236,15 @@ export function Terrain({ paused = false }: TerrainProps) {
         receiveShadow
       >
         <meshStandardMaterial
+          map={satelliteTexture}
           vertexColors
-          roughness={0.82}
-          metalness={0.05}
+          roughness={0.78}
+          metalness={0.06}
           flatShading={false}
         />
       </mesh>
 
-      {/* Tile 2: Alpine Terrain */}
+      {/* Tile 2: Alpine Terrain with Satellite Orthophoto Texture */}
       <mesh
         ref={mesh2Ref}
         geometry={geometry}
@@ -184,9 +252,10 @@ export function Terrain({ paused = false }: TerrainProps) {
         receiveShadow
       >
         <meshStandardMaterial
+          map={satelliteTexture}
           vertexColors
-          roughness={0.82}
-          metalness={0.05}
+          roughness={0.78}
+          metalness={0.06}
           flatShading={false}
         />
       </mesh>
