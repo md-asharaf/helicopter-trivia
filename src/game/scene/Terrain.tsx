@@ -19,7 +19,7 @@ interface TerrainProps {
 
 /**
  * Procedural Satellite Orthophoto Texture Generator (USGS / Sentinel style).
- * Generates 1024x1024 aerial satellite photography texture with forest canopy,
+ * Generates high-resolution aerial satellite photography texture with forest canopy,
  * rock striations, and alpine soil.
  */
 function createSatelliteOrthophotoTexture(): THREE.CanvasTexture {
@@ -45,7 +45,6 @@ function createSatelliteOrthophotoTexture(): THREE.CanvasTexture {
       const n3 = (Math.sin(x * 0.35) * Math.cos(y * 0.35)) * 0.2
       const noise = Math.min(1, Math.max(0, n1 + n2 + n3))
 
-      // Satellite palette: Evergreen forest, highland moss, rock ridge
       let r = 24, g = 48, b = 28
 
       if (noise < 0.35) {
@@ -84,40 +83,35 @@ function createSatelliteOrthophotoTexture(): THREE.CanvasTexture {
 
 function multiNoise(x: number, z: number): number {
   let val = 0
-  val += Math.sin(x * 0.025 + 0.8) * Math.cos(z * 0.025 + 1.2) * 0.55
-  val += Math.sin(x * 0.055 + 2.1) * Math.cos(z * 0.05 + 0.4) * 0.28
-  val += Math.sin(x * 0.12 + 1.4) * Math.cos(z * 0.11 + 2.5) * 0.12
-  val += Math.sin(x * 0.25 + 3.2) * Math.cos(z * 0.24 + 1.1) * 0.05
+  val += Math.sin(x * 0.022 + 0.8) * Math.cos(z * 0.022 + 1.2) * 0.55
+  val += Math.sin(x * 0.052 + 2.1) * Math.cos(z * 0.048 + 0.4) * 0.28
+  val += Math.sin(x * 0.11 + 1.4) * Math.cos(z * 0.10 + 2.5) * 0.12
+  val += Math.sin(x * 0.22 + 3.2) * Math.cos(z * 0.21 + 1.1) * 0.05
 
-  // Canyon carve down the middle
-  const riverDist = Math.abs(x) / 32.0
-  const riverFactor = Math.min(1.0, riverDist)
-  return ((val + 1) / 2) * (0.35 + 0.65 * riverFactor)
+  // Smooth natural valley undulation (always positive, never hollow)
+  const normalized = (val + 1) / 2
+  return 0.2 + normalized * 0.8
 }
 
 function getTerrainColor(normalized: number): [number, number, number] {
-  if (normalized < 0.14) {
-    // Riverbed sand & pebbles
-    return [0.36, 0.38, 0.32]
-  }
-  if (normalized < 0.35) {
-    // Rich green valley meadows
-    return [0.12, 0.36, 0.16]
+  if (normalized < 0.32) {
+    // Rich deep green valley basin
+    return [0.14, 0.35, 0.18]
   }
   if (normalized < 0.65) {
-    // Evergreen alpine hillside
+    // Evergreen alpine hillside & forest meadows
     return [
-      0.15 + (normalized - 0.35) * 0.12,
-      0.34 + (normalized - 0.35) * 0.14,
-      0.18 + (normalized - 0.35) * 0.10,
+      0.16 + (normalized - 0.32) * 0.12,
+      0.38 + (normalized - 0.32) * 0.14,
+      0.20 + (normalized - 0.32) * 0.10,
     ]
   }
   if (normalized < 0.85) {
-    // Rocky mountain slate
-    return [0.26, 0.30, 0.32]
+    // Rocky mountain slate & highland soil
+    return [0.28, 0.32, 0.34]
   }
   // High mountain crest
-  return [0.32, 0.35, 0.38]
+  return [0.35, 0.38, 0.40]
 }
 
 function buildTerrainData(size: number, subdivisions: number, maxHeight: number) {
@@ -143,11 +137,11 @@ function buildTerrainData(size: number, subdivisions: number, maxHeight: number)
     // Deterministic pseudo-random placement for trees based on coordinates
     const pseudoRand = Math.abs(Math.sin(x * 12.9898 + z * 78.233))
     if (
-      normalized > 0.18 &&
-      normalized < 0.70 &&
-      Math.abs(x) > 5.5 &&
+      normalized > 0.25 &&
+      normalized < 0.72 &&
+      Math.abs(x) > 6 &&
       validTreePositions.length < TREE_COUNT &&
-      pseudoRand < 0.10
+      pseudoRand < 0.09
     ) {
       validTreePositions.push({
         x,
@@ -166,19 +160,18 @@ function buildTerrainData(size: number, subdivisions: number, maxHeight: number)
 
 /**
  * Ultra-Realistic High-Speed Alpine Mountain Terrain with Satellite Orthophoto Texture,
- * Specular Reflective Water River & Streaming Forest.
+ * Solid Opaque Bedrock Base, and Streaming Alpine Forest.
+ * Strictly pauses scrolling when paused or overlay is open.
  */
 export function Terrain({ paused = false }: TerrainProps) {
   const mesh1Ref = useRef<THREE.Mesh>(null)
   const mesh2Ref = useRef<THREE.Mesh>(null)
-  const river1Ref = useRef<THREE.Mesh>(null)
-  const river2Ref = useRef<THREE.Mesh>(null)
   const forest1Ref = useRef<THREE.InstancedMesh>(null)
   const forest2Ref = useRef<THREE.InstancedMesh>(null)
 
   const size = GAME_CONFIG.world.terrainSize
   const subdivisions = GAME_CONFIG.world.terrainSubdivisions
-  const maxHeight = 15.0
+  const maxHeight = 14.0
 
   const satelliteTexture = useMemo(() => createSatelliteOrthophotoTexture(), [])
 
@@ -195,11 +188,6 @@ export function Terrain({ paused = false }: TerrainProps) {
 
     mesh1Ref.current.position.z += CHASE_SPEED * delta
     mesh2Ref.current.position.z += CHASE_SPEED * delta
-
-    if (river1Ref.current && river2Ref.current) {
-      river1Ref.current.position.z = mesh1Ref.current.position.z
-      river2Ref.current.position.z = mesh2Ref.current.position.z
-    }
 
     if (mesh1Ref.current.position.z >= size) {
       mesh1Ref.current.position.z = mesh2Ref.current.position.z - size
@@ -228,7 +216,7 @@ export function Terrain({ paused = false }: TerrainProps) {
 
   return (
     <group>
-      {/* Tile 1: Alpine Terrain with Satellite Orthophoto Texture */}
+      {/* Solid Continuous Tile 1: Alpine Terrain with Satellite Texture */}
       <mesh
         ref={mesh1Ref}
         geometry={geometry}
@@ -238,13 +226,13 @@ export function Terrain({ paused = false }: TerrainProps) {
         <meshStandardMaterial
           map={satelliteTexture}
           vertexColors
-          roughness={0.78}
-          metalness={0.06}
+          roughness={0.80}
+          metalness={0.05}
           flatShading={false}
         />
       </mesh>
 
-      {/* Tile 2: Alpine Terrain with Satellite Orthophoto Texture */}
+      {/* Solid Continuous Tile 2: Alpine Terrain with Satellite Texture */}
       <mesh
         ref={mesh2Ref}
         geometry={geometry}
@@ -254,44 +242,16 @@ export function Terrain({ paused = false }: TerrainProps) {
         <meshStandardMaterial
           map={satelliteTexture}
           vertexColors
-          roughness={0.78}
-          metalness={0.06}
+          roughness={0.80}
+          metalness={0.05}
           flatShading={false}
         />
       </mesh>
 
-      {/* Specular Reflective Canyon River Tile 1 */}
-      <mesh
-        ref={river1Ref}
-        position={[0, -2.4, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        receiveShadow
-      >
-        <planeGeometry args={[20, size]} />
-        <meshStandardMaterial
-          color="#062e45"
-          roughness={0.12}
-          metalness={0.88}
-          transparent
-          opacity={0.90}
-        />
-      </mesh>
-
-      {/* Specular Reflective Canyon River Tile 2 */}
-      <mesh
-        ref={river2Ref}
-        position={[0, -2.4, -size]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        receiveShadow
-      >
-        <planeGeometry args={[20, size]} />
-        <meshStandardMaterial
-          color="#062e45"
-          roughness={0.12}
-          metalness={0.88}
-          transparent
-          opacity={0.90}
-        />
+      {/* Solid Underbed Foundation (Guarantees skybox NEVER shows through ground) */}
+      <mesh position={[0, -4.8, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[size * 2, size * 2]} />
+        <meshStandardMaterial color="#142216" roughness={0.9} />
       </mesh>
 
       {/* Forest Trees Tile 1 */}
