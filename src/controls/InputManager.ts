@@ -56,38 +56,14 @@ class InputManager {
       this.aimY = Math.max(-0.6, Math.min(1, ny * 1.2))
     }
 
-    const onMouseDown = (e: MouseEvent) => {
-      if (this.paused) return
-      const target = e.target as HTMLElement
-      if (
-        !target ||
-        target.tagName === 'BUTTON' ||
-        target.closest('button') ||
-        target.closest('.modal-backdrop') ||
-        target.closest('.modal-container') ||
-        target.closest('.result-overlay') ||
-        target.closest('.gameover-overlay') ||
-        target.closest('.start-screen') ||
-        target.closest('.loading-overlay') ||
-        target.closest('.error-overlay')
-      ) {
-        return
-      }
-      if (e.button === 0) {
-        this.firePending = true
-      }
-    }
-
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
     window.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('mousedown', onMouseDown)
 
     this.boundHandlers.push(
       () => window.removeEventListener('keydown', onKeyDown),
       () => window.removeEventListener('keyup', onKeyUp),
-      () => window.removeEventListener('mousemove', onMouseMove),
-      () => window.removeEventListener('mousedown', onMouseDown)
+      () => window.removeEventListener('mousemove', onMouseMove)
     )
   }
 

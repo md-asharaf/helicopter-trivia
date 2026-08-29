@@ -41,8 +41,29 @@ export function OptionsPanel() {
     inputManager.setAim(-targetX / 22, inputManager.aimY)
   }
 
+  const handleLaunch = () => {
+    inputManager.touchFire()
+  }
+
   return (
     <div className="hud-options-panel" role="region" aria-label="Trivia Answer Options">
+      {/* Target Lock Status & Desktop Launch Button */}
+      <div className="hud-options-header">
+        <div className="hud-options-header__target">
+          <span className="hud-options-header__dot">●</span>
+          TARGET: <strong>[ {OPTION_LETTERS[lockedIndex]} ] {options[lockedIndex]}</strong>
+        </div>
+        <button
+          className="hud-launch-btn"
+          onClick={handleLaunch}
+          aria-label="Launch grenade at locked target"
+        >
+          <span className="hud-launch-btn__icon">💣</span>
+          <span className="hud-launch-btn__text">LAUNCH GRENADE</span>
+          <span className="hud-launch-btn__key">SPACE</span>
+        </button>
+      </div>
+
       <div className="hud-options-grid">
         {options.map((optText, idx) => {
           const letter = OPTION_LETTERS[idx]
