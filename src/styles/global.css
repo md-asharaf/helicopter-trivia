@@ -829,63 +829,74 @@ html, body {
 .modal-btn:active { transform: scale(0.97) translateY(0); }
 
 /* ─── Result Overlay ──────────────────────────────────────────── */
+/* ─── Result Overlay (Top Tactical Notification Banner) ──────── */
 .result-overlay {
   position: fixed;
-  inset: 0;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 90;
+  z-index: 120;
   pointer-events: none;
-  background: rgba(2, 6, 12, 0.4);
-  backdrop-filter: blur(4px);
+  background: transparent;
+  backdrop-filter: none;
+  width: auto;
+  max-width: min(92vw, 440px);
 }
 
 .result-overlay__card {
   pointer-events: auto;
-  background: rgba(6, 16, 30, 0.95);
-  border-radius: 14px;
-  padding: 28px 36px;
+  background: rgba(4, 15, 28, 0.94);
+  border-radius: 10px;
+  padding: 10px 22px;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 12px 50px rgba(0,0,0,0.7);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
   border: 1.5px solid transparent;
-  min-width: 300px;
-  max-width: 90vw;
+  backdrop-filter: blur(8px);
+}
+
+.result-overlay__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
 }
 
 @keyframes resultSlideIn {
-  from { transform: translateY(-40px) scale(0.92); opacity: 0; }
+  from { transform: translateY(-30px) scale(0.95); opacity: 0; }
   to   { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 @keyframes resultSlideOut {
   from { transform: translateY(0) scale(1); opacity: 1; }
-  to   { transform: translateY(-30px) scale(0.95); opacity: 0; }
+  to   { transform: translateY(-20px) scale(0.95); opacity: 0; }
 }
 
 .result-overlay--enter .result-overlay__card {
-  animation: resultSlideIn 280ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: resultSlideIn 250ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 .result-overlay--correct .result-overlay__card {
-  border-color: rgba(0, 255, 136, 0.6);
-  box-shadow: 0 12px 50px rgba(0, 255, 136, 0.2), 0 0 20px rgba(0, 255, 136, 0.1);
+  border-color: rgba(0, 255, 136, 0.7);
+  box-shadow: 0 8px 32px rgba(0, 255, 136, 0.25), 0 0 16px rgba(0, 255, 136, 0.2);
 }
 
 .result-overlay--wrong .result-overlay__card,
 .result-overlay--miss .result-overlay__card {
-  border-color: rgba(255, 51, 85, 0.6);
-  box-shadow: 0 12px 50px rgba(255, 51, 85, 0.2), 0 0 20px rgba(255, 51, 85, 0.1);
+  border-color: rgba(255, 51, 85, 0.7);
+  box-shadow: 0 8px 32px rgba(255, 51, 85, 0.25), 0 0 16px rgba(255, 51, 85, 0.2);
 }
 
 .result-overlay__icon {
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 900;
-  margin-bottom: 6px;
+  margin-bottom: 2px;
 }
 
 .result-overlay--correct .result-overlay__icon { color: var(--green); }
@@ -894,10 +905,10 @@ html, body {
 
 .result-overlay__title {
   font-family: var(--font-title);
-  font-size: 22px;
+  font-size: 15px;
   font-weight: 900;
-  letter-spacing: 3px;
-  margin-bottom: 6px;
+  letter-spacing: 2px;
+  margin-bottom: 2px;
   text-align: center;
 }
 
@@ -907,9 +918,9 @@ html, body {
 
 .result-overlay__delta {
   font-family: var(--font-title);
-  font-size: 24px;
-  font-weight: 700;
-  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 800;
+  margin-bottom: 2px;
   text-align: center;
 }
 
@@ -919,7 +930,7 @@ html, body {
 
 .result-overlay__streak {
   font-family: var(--font-hud);
-  font-size: 16px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--amber);
   letter-spacing: 1px;
@@ -927,10 +938,10 @@ html, body {
 
 .result-overlay__correct-reveal {
   font-family: var(--font-hud);
-  font-size: 13px;
+  font-size: 12px;
   color: var(--grey);
-  line-height: 1.6;
-  margin-top: 8px;
+  margin-top: 4px;
+  line-height: 1.3;
 }
 
 .result-overlay__correct-reveal strong {

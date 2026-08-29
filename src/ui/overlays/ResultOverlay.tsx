@@ -8,9 +8,9 @@ function getResultOverlayClass(result: 'correct' | 'wrong' | 'miss'): string {
 }
 
 /**
- * Animated result overlay — slides in after bomb resolution.
- * Shows correct/wrong/miss with score delta and streak.
- * Automatically advances to NEXT_QUESTION and provides an instant Continue button.
+ * Top Tactical Banner Result Notification.
+ * No full-screen backdrop blur so the 3D explosion and action stay 100% visible.
+ * Auto-advances to the next question cleanly without blocking buttons.
  */
 export function ResultOverlay() {
   const state = useGameState()
@@ -34,7 +34,7 @@ export function ResultOverlay() {
   useEffect(() => {
     if (!isResolving) return
 
-    const duration = isCorrect ? 2000 : 2800
+    const duration = isCorrect ? 1800 : 2500
     const timer = setTimeout(() => {
       dispatch({ type: 'NEXT_QUESTION' })
     }, duration)
@@ -48,53 +48,36 @@ export function ResultOverlay() {
   const resultClass = getResultOverlayClass(state.lastResult)
   const delta = isCorrect ? '+100' : '−10'
 
-  const handleContinue = () => {
-    dispatch({ type: 'NEXT_QUESTION' })
-  }
-
   return (
     <div ref={overlayRef} className={`result-overlay ${resultClass}`} aria-live="polite">
       <div className="result-overlay__card">
         {isCorrect && (
-          <>
+          <div className="result-overlay__content">
             <div className="result-overlay__title">TARGET DESTROYED!</div>
             <div className="result-overlay__delta">{delta} PTS</div>
             {state.streak > 1 && (
               <div className="result-overlay__streak">🔥 STREAK × {state.streak}</div>
             )}
-          </>
+          </div>
         )}
         {isWrong && (
-          <>
+          <div className="result-overlay__content">
             <div className="result-overlay__title">WRONG TARGET!</div>
             <div className="result-overlay__delta">{delta} PTS</div>
             <div className="result-overlay__correct-reveal">
-              Correct Answer:<br />
-              <strong>{currentQuestion?.answer}</strong>
+              Correct: <strong>{currentQuestion?.answer}</strong>
             </div>
-          </>
+          </div>
         )}
         {isMiss && (
-          <>
-            <div className="result-overlay__icon">◎</div>
+          <div className="result-overlay__content">
             <div className="result-overlay__title">TARGET MISSED!</div>
             <div className="result-overlay__delta">{delta} PTS</div>
             <div className="result-overlay__correct-reveal">
-              Correct Answer:<br />
-              <strong>{currentQuestion?.answer}</strong>
+              Correct: <strong>{currentQuestion?.answer}</strong>
             </div>
-          </>
+          </div>
         )}
-
-        {/* Instant advance button */}
-        <button
-          className="modal-btn modal-btn--primary"
-          style={{ marginTop: '16px', padding: '8px 20px', fontSize: '11px', width: 'auto', marginInline: 'auto' }}
-          onClick={handleContinue}
-          autoFocus
-        >
-          NEXT QUESTION ➔
-        </button>
       </div>
     </div>
   )
