@@ -470,18 +470,19 @@ html, body {
 }
 
 .hud-option-card {
-  background: rgba(6, 18, 32, 0.82);
+  background: rgba(6, 18, 32, 0.85);
   border: 1.5px solid rgba(0, 229, 255, 0.22);
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 8px 12px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   backdrop-filter: blur(12px);
   cursor: pointer;
   transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
   text-align: left;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  min-height: 50px;
 }
 
 .hud-option-card:hover {
@@ -491,7 +492,7 @@ html, body {
 }
 
 .hud-option-card--locked {
-  background: linear-gradient(135deg, rgba(0, 229, 255, 0.22), rgba(0, 45, 75, 0.92));
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.25), rgba(0, 45, 75, 0.94));
   border-color: var(--cyan);
   box-shadow: 0 0 24px rgba(0, 229, 255, 0.35), 0 0 2px var(--cyan);
   transform: translateY(-4px) scale(1.03);
@@ -501,6 +502,7 @@ html, body {
   flex-shrink: 0;
   width: 28px;
   height: 28px;
+  margin-top: 1px;
   background: rgba(0, 229, 255, 0.15);
   border: 1.5px solid var(--cyan-dim);
   border-radius: 6px;
@@ -542,12 +544,13 @@ html, body {
 
 .hud-option-card__text {
   font-family: var(--font-hud);
-  font-size: 13px;
+  font-size: clamp(11.5px, 1.1vw, 13.5px);
   font-weight: 600;
   color: var(--white);
   line-height: 1.25;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.25px;
   word-break: break-word;
+  flex: 1;
 }
 
 .hud-option-card--locked .hud-option-card__text {

@@ -52,13 +52,16 @@ export function OptionsPanel() {
               key={idx}
               className={`hud-option-card ${isLocked ? 'hud-option-card--locked' : ''}`}
               onClick={() => handleOptionClick(idx)}
+              title={optText}
               aria-label={`Option ${letter}: ${optText}`}
             >
               <div className="hud-option-card__badge">
                 <span className="hud-option-card__letter">{letter}</span>
                 {isLocked && <span className="hud-option-card__lock-icon">🎯</span>}
               </div>
-              <div className="hud-option-card__text">{optText}</div>
+              <div className="hud-option-card__text" title={optText}>
+                {optText}
+              </div>
             </button>
           )
         })}
