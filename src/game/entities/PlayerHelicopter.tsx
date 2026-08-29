@@ -15,15 +15,16 @@ interface PlayerHelicopterProps {
 }
 
 /**
- * Player Chase Helicopter.
- * Drives the high-speed pursuit from behind the 4 front target helicopters.
- * Features aggressive pursuit banking, lane maneuvering, and dynamic aim tracking.
+ * Player High-Altitude Chase Helicopter.
+ * Full 3D Flight Freedom:
+ * - High altitude climb (up to y = 36) down to treetop skimming (y = 4)
+ * - Dynamic pitch, roll/bank, and yaw based on climb/dive and turns.
  */
 export const PlayerHelicopter = forwardRef<PlayerHelicopterHandle, PlayerHelicopterProps>(
   function PlayerHelicopter({ paused }, ref) {
     const groupRef = useRef<THREE.Group>(null)
     const posX = useRef(0)
-    const posY = useRef(16)
+    const posY = useRef(20)
     const bankAngle = useRef(0)
     const pitchAngle = useRef(0)
 
@@ -48,44 +49,54 @@ export const PlayerHelicopter = forwardRef<PlayerHelicopterHandle, PlayerHelicop
       inputManager.updateAimWithDelta(delta)
 
       const { yaw, pitch } = inputManager.getAimAngles()
+      const move = inputManager.getMovement()
 
-      // Target X position tracks aim X smoothly across chase lanes (-24 to +24)
-      const targetX = -inputManager.aimX * 22.0
-      // Target Y position tracks height (14 to 20)
-      const targetY = 16.0 + inputManager.aimY * 3.5
+      // Target X position tracks aim X smoothly across chase lanes (-26 to +26)
+      const targetX = -inputManager.aimX * 24.0
 
-      // Smooth pursuit maneuvering
+      // Target Y position allows full high-altitude climb (up to 36) down to treetop skimming (3.5)
+      // Combines mouse/aim Y + keyboard Shift/Ctrl/W/S movement and touch joystick
+      const aimHeightOffset = inputManager.aimY * 12.0
+      const keyAltitudeBonus = move.y * 8.0 + (move.z < 0 ? 4.0 : move.z > 0 ? -4.0 : 0)
+      const baseAlt = 18.0
+
+      const targetY = THREE.MathUtils.clamp(
+        baseAlt + aimHeightOffset + keyAltitudeBonus,
+        3.5,
+        36.0
+      )
+
+      // Smooth flight maneuvering
       posX.current = THREE.MathUtils.lerp(posX.current, targetX, delta * 5.5)
       posY.current = THREE.MathUtils.lerp(posY.current, targetY, delta * 5.0)
 
       // Speed banking based on lateral movement
       const moveDeltaX = (targetX - posX.current)
-      const targetBank = THREE.MathUtils.clamp(-moveDeltaX * 0.08 - yaw * 0.35, -0.65, 0.65)
+      const targetBank = THREE.MathUtils.clamp(-moveDeltaX * 0.07 - yaw * 0.35, -0.65, 0.65)
       bankAngle.current = THREE.MathUtils.lerp(bankAngle.current, targetBank, delta * 8.0)
 
-      // Pitch angle forward into the chase
-      const targetPitch = 0.15 + pitch * 0.12
+      // Dynamic Climb / Dive Pitch
+      const climbDeltaY = (targetY - posY.current)
+      const targetPitch = 0.12 - climbDeltaY * 0.08 + pitch * 0.15
       pitchAngle.current = THREE.MathUtils.lerp(pitchAngle.current, targetPitch, delta * 6.0)
 
       // Natural flight turbulence bobbing
       const t = state.clock.getElapsedTime()
-      const bobbing = Math.sin(t * 3.2) * 0.12
+      const bobbing = Math.sin(t * 3.2) * 0.14
 
       groupRef.current.position.set(posX.current, posY.current + bobbing, 0)
 
-      // Rotate: Pitch down forward, Yaw towards aim, Roll/Bank into turns
+      // Rotate: Pitch down forward/up in climb, Yaw towards aim, Roll/Bank into turns
       groupRef.current.rotation.set(
         -pitchAngle.current,
-        yaw * 0.8,
+        yaw * 0.75,
         bankAngle.current
       )
     })
 
     return (
-      <group ref={groupRef} position={[0, 16, 0]}>
+      <group ref={groupRef} position={[0, 20, 0]}>
         <HelicopterMesh isPlayer />
-        {/* Neon blue afterburner / thruster light */}
-        <pointLight color="#00e5ff" intensity={2.0} distance={10} decay={2} />
       </group>
     )
   }

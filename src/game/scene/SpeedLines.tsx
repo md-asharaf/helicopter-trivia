@@ -2,7 +2,7 @@ import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 
-const LINE_COUNT = 36
+const LINE_COUNT = 40
 
 interface SpeedLinesProps {
   paused?: boolean
@@ -10,7 +10,7 @@ interface SpeedLinesProps {
 
 /**
  * Aerodynamic flight speed streaks (white wind trails zooming past the aircraft).
- * Matches the reference dogfight game's high-speed sensation.
+ * Cylinders are oriented horizontally along Z matching the reference screenshots.
  */
 export function SpeedLines({ paused = false }: SpeedLinesProps) {
   const linePoints = useMemo(() => {
@@ -18,12 +18,12 @@ export function SpeedLines({ paused = false }: SpeedLinesProps) {
     for (let i = 0; i < LINE_COUNT; i++) {
       lines.push({
         origin: new THREE.Vector3(
-          (Math.random() - 0.5) * 44,
+          (Math.random() - 0.5) * 48,
           13 + Math.random() * 8,
-          -80 + Math.random() * 120
+          -90 + Math.random() * 140
         ),
-        speed: 85 + Math.random() * 45,
-        length: 8 + Math.random() * 12,
+        speed: 95 + Math.random() * 50,
+        length: 12 + Math.random() * 16,
       })
     }
     return lines
@@ -37,9 +37,9 @@ export function SpeedLines({ paused = false }: SpeedLinesProps) {
     linesRef.current.children.forEach((child, i) => {
       const lineData = linePoints[i]
       child.position.z += lineData.speed * delta
-      if (child.position.z > 30) {
-        child.position.z = -100
-        child.position.x = (Math.random() - 0.5) * 44
+      if (child.position.z > 35) {
+        child.position.z = -110
+        child.position.x = (Math.random() - 0.5) * 48
         child.position.y = 13 + Math.random() * 8
       }
     })
@@ -48,12 +48,12 @@ export function SpeedLines({ paused = false }: SpeedLinesProps) {
   return (
     <group ref={linesRef}>
       {linePoints.map((l, i) => (
-        <mesh key={i} position={l.origin.toArray()} rotation={[0, 0, 0]}>
-          <cylinderGeometry args={[0.04, 0.04, l.length, 4]} />
+        <mesh key={i} position={l.origin.toArray()} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.035, 0.035, l.length, 3]} />
           <meshBasicMaterial
             color="#ffffff"
             transparent
-            opacity={0.35}
+            opacity={0.42}
           />
         </mesh>
       ))}

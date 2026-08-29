@@ -83,11 +83,11 @@ export function CameraRig({ playerRef, bombPosition, impactPosition, shake, paus
         break
       }
       default: {
-        // Elevated dogfight chase camera (matching reference game)
+        // Elevated dynamic dogfight chase camera
         desiredPos = new THREE.Vector3(
           playerPos.x * 0.55,
-          playerPos.y + 4.2,
-          playerPos.z + 15.0
+          playerPos.y + 4.8 + Math.max(0, (playerPos.y - 18) * 0.25),
+          playerPos.z + 16.0
         )
         break
       }
@@ -97,10 +97,14 @@ export function CameraRig({ playerRef, bombPosition, impactPosition, shake, paus
     targetPos.current.lerp(desiredPos, delta * lag)
     camera.position.copy(targetPos.current)
 
-    // Look at target: either bomb or ahead into the horizon
+    // Dynamic pitch looking down at island/river
     const lookTarget = mode.current === 'bombing' && bombPosition
       ? bombPosition
-      : new THREE.Vector3(playerPos.x * 0.3, playerPos.y + 0.5, -45)
+      : new THREE.Vector3(
+          playerPos.x * 0.3,
+          playerPos.y * 0.65 - 2.5,
+          -52
+        )
 
     camera.lookAt(lookTarget)
 
