@@ -555,10 +555,11 @@ html, body {
   text-shadow: 0 0 8px rgba(0, 229, 255, 0.6);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 960px) {
   .hud-options-panel {
-    bottom: 24px;
-    width: 96vw;
+    bottom: 12px;
+    width: min(calc(100vw - 250px), 540px);
+    pointer-events: auto;
   }
   .hud-options-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -567,9 +568,39 @@ html, body {
   .hud-option-card {
     padding: 6px 8px;
     gap: 6px;
+    border-radius: 8px;
+  }
+  .hud-option-card__badge {
+    width: 22px;
+    height: 22px;
+  }
+  .hud-option-card__letter {
+    font-size: 11px;
   }
   .hud-option-card__text {
     font-size: 11px;
+    line-height: 1.15;
+  }
+}
+
+@media (max-width: 640px) {
+  .hud-options-panel {
+    width: min(calc(100vw - 210px), 420px);
+    bottom: 8px;
+  }
+  .hud-option-card {
+    padding: 4px 6px;
+    gap: 4px;
+  }
+  .hud-option-card__badge {
+    width: 18px;
+    height: 18px;
+  }
+  .hud-option-card__letter {
+    font-size: 10px;
+  }
+  .hud-option-card__text {
+    font-size: 10px;
   }
 }
 
