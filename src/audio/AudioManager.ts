@@ -1,17 +1,19 @@
 /**
- * AudioManager — Premium Procedural Web Audio API sound engine.
- * Crisp, punchy, arcade-grade sounds without harsh noise or grating buzz.
+ * AudioManager — Production-Grade Procedural Web Audio API Sound Engine (SKILL.md Law 1).
+ * Crisp, punchy, arcade-grade sound effects and dynamic turbine synth without external audio files.
  */
 
 type SoundId =
   | 'rotorLoop'
   | 'bombDrop'
   | 'bombFlight'
+  | 'lockOn'
   | 'explosion'
   | 'correct'
   | 'wrong'
   | 'uiClick'
   | 'gameComplete'
+  | 'streakCombo'
   | 'countdown'
 
 class AudioManager {
@@ -19,6 +21,7 @@ class AudioManager {
   private ctx: AudioContext | null = null
   private masterGain: GainNode | null = null
   private activeSources: Map<SoundId, AudioNode> = new Map()
+  private rotorOsc: OscillatorNode | null = null
   private muted = false
   private initialized = false
 
@@ -34,7 +37,9 @@ class AudioManager {
   init(): void {
     if (this.initialized) return
     try {
-      this.ctx = new AudioContext()
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      if (!AudioCtx) return
+      this.ctx = new AudioCtx()
       this.masterGain = this.ctx.createGain()
       this.masterGain.connect(this.ctx.destination)
       this.masterGain.gain.setValueAtTime(this.muted ? 0 : 0.45, this.ctx.currentTime)
@@ -47,13 +52,13 @@ class AudioManager {
   setMuted(muted: boolean): void {
     this.muted = muted
     if (this.masterGain && this.ctx) {
-      this.masterGain.gain.setTargetAtTime(muted ? 0 : 0.45, this.ctx.currentTime, 0.05)
+      this.masterGain.gain.setTargetAtTime(muted ? 0 : 0.45, this.ctx.currentTime, 0.04)
     }
   }
 
   private get audioCtx(): AudioContext | null {
-    if (!this.initialized) return null
-    if (this.ctx?.state === 'suspended') {
+    if (!this.initialized) this.init()
+    if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume().catch(() => {})
     }
     return this.ctx
@@ -80,11 +85,14 @@ class AudioManager {
 
   play(id: SoundId): void {
     const ctx = this.audioCtx
-    if (!ctx || !this.masterGain) return
+    if (!ctx || !this.masterGain || this.muted) return
 
     switch (id) {
       case 'rotorLoop':
         this.playRotorLoop(ctx)
+        break
+      case 'lockOn':
+        this.playLockOn(ctx)
         break
       case 'bombDrop':
         this.playBombDrop(ctx)
@@ -103,6 +111,9 @@ class AudioManager {
         break
       case 'uiClick':
         this.playUiClick(ctx)
+        break
+      case 'streakCombo':
+        this.playStreakCombo(ctx)
         break
       case 'gameComplete':
         this.playGameComplete(ctx)
@@ -123,10 +134,20 @@ class AudioManager {
       }
       this.activeSources.delete(id)
     }
+    if (id === 'rotorLoop') {
+      this.rotorOsc = null
+    }
   }
 
   stopAll(): void {
     this.activeSources.forEach((_, id) => this.stop(id))
+  }
+
+  /** Modulate rotor pitch based on player maneuvers (climbing / turning) */
+  setRotorPitch(pitchMultiplier = 1.0): void {
+    if (!this.rotorOsc || !this.ctx) return
+    const freq = Math.max(45, Math.min(75, 55 * pitchMultiplier))
+    this.rotorOsc.frequency.setTargetAtTime(freq, this.ctx.currentTime, 0.1)
   }
 
   /** Soft, pleasant turbine hum with subtle low-frequency rhythm */
@@ -135,36 +156,56 @@ class AudioManager {
 
     // Gentle sub-bass hum (55 Hz)
     const osc = ctx.createOscillator()
-    osc.type = 'sine'
+    osc.type = 'sawtooth'
     osc.frequency.setValueAtTime(55, ctx.currentTime)
 
-    // Soft warm filter
+    // Soft warm lowpass filter to produce deep turbine purr
     const filter = ctx.createBiquadFilter()
     filter.type = 'lowpass'
-    filter.frequency.setValueAtTime(120, ctx.currentTime)
+    filter.frequency.setValueAtTime(140, ctx.currentTime)
 
-    const gain = this.createGain(0.06) // very soft background
+    const gain = this.createGain(0.045) // pleasant background volume
     osc.connect(filter)
     filter.connect(gain)
     osc.start()
 
+    this.rotorOsc = osc
     this.activeSources.set('rotorLoop', osc)
   }
 
-  /** High-tech launch whoosh */
-  private playBombDrop(ctx: AudioContext): void {
-    const gain = this.createGain(0.4)
+  /** High-tech target lock-on beep */
+  private playLockOn(ctx: AudioContext): void {
+    const t = ctx.currentTime
     const osc = ctx.createOscillator()
-    osc.type = 'sine'
-    osc.frequency.setValueAtTime(450, ctx.currentTime)
-    osc.frequency.exponentialRampToValueAtTime(120, ctx.currentTime + 0.28)
+    const gain = this.createGain(0.18)
 
-    gain.gain.setValueAtTime(0.4, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(1400, t)
+    osc.frequency.setValueAtTime(1800, t + 0.04)
+
+    gain.gain.setValueAtTime(0.18, t)
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.09)
 
     osc.connect(gain)
-    osc.start()
-    osc.stop(ctx.currentTime + 0.3)
+    osc.start(t)
+    osc.stop(t + 0.09)
+  }
+
+  /** High-tech pneumatic bomb launch whoosh */
+  private playBombDrop(ctx: AudioContext): void {
+    const t = ctx.currentTime
+    const gain = this.createGain(0.42)
+    const osc = ctx.createOscillator()
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(520, t)
+    osc.frequency.exponentialRampToValueAtTime(110, t + 0.28)
+
+    gain.gain.setValueAtTime(0.42, t)
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3)
+
+    osc.connect(gain)
+    osc.start(t)
+    osc.stop(t + 0.3)
   }
 
   private playBombFlight(ctx: AudioContext): void {
@@ -173,7 +214,7 @@ class AudioManager {
     const osc = ctx.createOscillator()
     osc.type = 'sine'
     osc.frequency.setValueAtTime(240, ctx.currentTime)
-    osc.frequency.linearRampToValueAtTime(180, ctx.currentTime + 1.5)
+    osc.frequency.linearRampToValueAtTime(180, ctx.currentTime + 1.2)
     osc.connect(gain)
     osc.start()
     this.activeSources.set('bombFlight', osc)
@@ -182,117 +223,143 @@ class AudioManager {
   /** Deep cinematic boom explosion */
   private playExplosion(ctx: AudioContext): void {
     this.stop('bombFlight')
+    const t = ctx.currentTime
 
-    // Low sub boom
+    // 1. Heavy Sub-Bass Boom
     const subOsc = ctx.createOscillator()
     subOsc.type = 'sine'
-    subOsc.frequency.setValueAtTime(120, ctx.currentTime)
-    subOsc.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.6)
+    subOsc.frequency.setValueAtTime(140, t)
+    subOsc.frequency.exponentialRampToValueAtTime(25, t + 0.7)
 
-    const subGain = this.createGain(0.6)
-    subGain.gain.setValueAtTime(0.6, ctx.currentTime)
-    subGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.65)
+    const subGain = this.createGain(0.65)
+    subGain.gain.setValueAtTime(0.65, t)
+    subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.75)
 
     subOsc.connect(subGain)
-    subOsc.start()
-    subOsc.stop(ctx.currentTime + 0.65)
+    subOsc.start(t)
+    subOsc.stop(t + 0.75)
 
-    // Filtered noise burst
+    // 2. Filtered White Noise Blast
     const bufferSource = ctx.createBufferSource()
-    bufferSource.buffer = this.createNoiseBuffer(0.8)
+    bufferSource.buffer = this.createNoiseBuffer(0.85)
 
     const filter = ctx.createBiquadFilter()
     filter.type = 'lowpass'
-    filter.frequency.setValueAtTime(800, ctx.currentTime)
-    filter.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.7)
+    filter.frequency.setValueAtTime(1200, t)
+    filter.frequency.exponentialRampToValueAtTime(60, t + 0.75)
 
     const noiseGain = this.createGain(0.5)
-    noiseGain.gain.setValueAtTime(0.5, ctx.currentTime)
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8)
+    noiseGain.gain.setValueAtTime(0.5, t)
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.85)
 
     bufferSource.connect(filter)
     filter.connect(noiseGain)
-    bufferSource.start()
-    bufferSource.stop(ctx.currentTime + 0.8)
+    bufferSource.start(t)
+    bufferSource.stop(t + 0.85)
   }
 
-  /** Crisp, sparkling 4-note victory chime */
+  /** Crisp, sparkling 4-note victory chime (C5, E5, G5, C6) */
   private playCorrect(ctx: AudioContext): void {
-    const notes = [523.25, 659.25, 783.99, 1046.5] // C5, E5, G5, C6
+    const notes = [523.25, 659.25, 783.99, 1046.5]
+    const t = ctx.currentTime
     notes.forEach((freq, i) => {
       const osc = ctx.createOscillator()
       osc.type = 'sine'
-      osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.08)
+      osc.frequency.setValueAtTime(freq, t + i * 0.08)
 
-      const gain = this.createGain(0.25)
-      gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.08)
-      gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + i * 0.08 + 0.02)
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.08 + 0.35)
+      const gain = this.createGain(0.24)
+      gain.gain.setValueAtTime(0, t + i * 0.08)
+      gain.gain.linearRampToValueAtTime(0.24, t + i * 0.08 + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.35)
 
       osc.connect(gain)
-      osc.start(ctx.currentTime + i * 0.08)
-      osc.stop(ctx.currentTime + i * 0.08 + 0.4)
+      osc.start(t + i * 0.08)
+      osc.stop(t + i * 0.08 + 0.38)
     })
   }
 
-  /** Gentle low thud for wrong answer */
+  /** Streak Combo Fanfare */
+  private playStreakCombo(ctx: AudioContext): void {
+    const notes = [659.25, 783.99, 1046.5, 1318.51] // E5, G5, C6, E6
+    const t = ctx.currentTime
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator()
+      osc.type = 'triangle'
+      osc.frequency.setValueAtTime(freq, t + i * 0.06)
+
+      const gain = this.createGain(0.26)
+      gain.gain.setValueAtTime(0, t + i * 0.06)
+      gain.gain.linearRampToValueAtTime(0.26, t + i * 0.06 + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.06 + 0.38)
+
+      osc.connect(gain)
+      osc.start(t + i * 0.06)
+      osc.stop(t + i * 0.06 + 0.4)
+    })
+  }
+
+  /** Gentle low double-thud for wrong answer */
   private playWrong(ctx: AudioContext): void {
+    const t = ctx.currentTime
     const osc = ctx.createOscillator()
     osc.type = 'triangle'
-    osc.frequency.setValueAtTime(140, ctx.currentTime)
-    osc.frequency.exponentialRampToValueAtTime(70, ctx.currentTime + 0.25)
+    osc.frequency.setValueAtTime(160, t)
+    osc.frequency.exponentialRampToValueAtTime(65, t + 0.28)
 
     const gain = this.createGain(0.3)
-    gain.gain.setValueAtTime(0.3, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28)
+    gain.gain.setValueAtTime(0.3, t)
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3)
 
     osc.connect(gain)
-    osc.start()
-    osc.stop(ctx.currentTime + 0.28)
+    osc.start(t)
+    osc.stop(t + 0.3)
   }
 
   /** Modern soft UI bubble click */
   private playUiClick(ctx: AudioContext): void {
+    const t = ctx.currentTime
     const osc = ctx.createOscillator()
     osc.type = 'sine'
-    osc.frequency.setValueAtTime(900, ctx.currentTime)
-    osc.frequency.exponentialRampToValueAtTime(450, ctx.currentTime + 0.04)
+    osc.frequency.setValueAtTime(950, t)
+    osc.frequency.exponentialRampToValueAtTime(450, t + 0.04)
 
-    const gain = this.createGain(0.12)
-    gain.gain.setValueAtTime(0.12, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05)
+    const gain = this.createGain(0.14)
+    gain.gain.setValueAtTime(0.14, t)
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05)
 
     osc.connect(gain)
-    osc.start()
-    osc.stop(ctx.currentTime + 0.05)
+    osc.start(t)
+    osc.stop(t + 0.05)
   }
 
   private playGameComplete(ctx: AudioContext): void {
     const melody = [523.25, 659.25, 783.99, 1046.5, 1318.51]
+    const t = ctx.currentTime
     melody.forEach((freq, i) => {
       const osc = ctx.createOscillator()
       osc.type = 'sine'
-      osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.12)
+      osc.frequency.setValueAtTime(freq, t + i * 0.11)
       const gain = this.createGain(0.22)
-      gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.12)
-      gain.gain.linearRampToValueAtTime(0.22, ctx.currentTime + i * 0.12 + 0.03)
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.12 + 0.5)
+      gain.gain.setValueAtTime(0, t + i * 0.11)
+      gain.gain.linearRampToValueAtTime(0.22, t + i * 0.11 + 0.03)
+      gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.11 + 0.5)
       osc.connect(gain)
-      osc.start(ctx.currentTime + i * 0.12)
-      osc.stop(ctx.currentTime + i * 0.12 + 0.55)
+      osc.start(t + i * 0.11)
+      osc.stop(t + i * 0.11 + 0.55)
     })
   }
 
   private playCountdown(ctx: AudioContext): void {
+    const t = ctx.currentTime
     const osc = ctx.createOscillator()
     osc.type = 'sine'
-    osc.frequency.setValueAtTime(750, ctx.currentTime)
+    osc.frequency.setValueAtTime(780, t)
     const gain = this.createGain(0.15)
-    gain.gain.setValueAtTime(0.15, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1)
+    gain.gain.setValueAtTime(0.15, t)
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.09)
     osc.connect(gain)
-    osc.start()
-    osc.stop(ctx.currentTime + 0.1)
+    osc.start(t)
+    osc.stop(t + 0.09)
   }
 }
 

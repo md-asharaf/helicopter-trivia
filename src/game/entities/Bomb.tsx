@@ -1,8 +1,7 @@
-import { useRef, useMemo } from 'react'
+import { useRef, useMemo, useEffect } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 import type { BombPhase, HelicopterOption } from '@/game/gameTypes'
-import { GAME_CONFIG } from '@/game/gameConfig'
 
 interface BombProps {
   spawnPosition: THREE.Vector3
@@ -16,13 +15,13 @@ interface BombProps {
   onPhaseChange: (phase: BombPhase) => void
 }
 
-const TOTAL_FLIGHT_TIME = 0.95 // 0.95s fast arcade strike
-const ARC_HEIGHT = 4.5 // Maximum upward arc peak
+const TOTAL_FLIGHT_TIME = 0.88 // 0.88s fast arcade strike
+const ARC_HEIGHT = 4.2 // Upward arc peak
+const TRAIL_MAX_POINTS = 40
 
 /**
- * Ultra-Realistic Military Tactical Frag Grenade (Pineapple / M67 Style).
- * Features segmented ribbed steel body, olive drab finish, safety fuze collar,
- * safety lever spoon, tactical pull-ring, and glowing ignition fuse with realistic spin.
+ * Ultra-Realistic Military Tactical Frag Grenade (SKILL.md Law 1 & Law 3).
+ * Zero per-frame memory allocation using ring buffer Float32Array.
  */
 export function Bomb({
   spawnPosition,
@@ -39,58 +38,97 @@ export function Bomb({
   const grenadeMeshRef = useRef<THREE.Group>(null)
   const elapsedTime = useRef(0)
   const resolvedRef = useRef(false)
-  const trailPositions = useRef<THREE.Vector3[]>([])
-  const trailGeometry = useRef<THREE.BufferGeometry>(new THREE.BufferGeometry())
 
-  const trailLineObject = useMemo(() => {
-    return new THREE.Line(
-      trailGeometry.current,
-      new THREE.LineBasicMaterial({ color: '#ff6600', transparent: true, opacity: 0.85, linewidth: 3 })
-    )
+  // Reusable scratch objects
+  const scratchPos = useRef(new THREE.Vector3())
+  const scratchNextPos = useRef(new THREE.Vector3())
+  const scratchDir = useRef(new THREE.Vector3())
+  const scratchQuat = useRef(new THREE.Quaternion())
+  const upVec = useMemo(() => new THREE.Vector3(0, 1, 0), [])
+
+  // Trail buffer pre-allocation (Zero-GC)
+  const trailPositions = useRef(new Float32Array(TRAIL_MAX_POINTS * 3))
+  const trailCount = useRef(0)
+  const trailGeoRef = useRef<THREE.BufferGeometry | null>(null)
+
+  // Stable geometry & line material created once
+  const { geometry, material } = useMemo(() => {
+    const geo = new THREE.BufferGeometry()
+    const attr = new THREE.BufferAttribute(new Float32Array(TRAIL_MAX_POINTS * 3), 3)
+    attr.setUsage(THREE.DynamicDrawUsage)
+    geo.setAttribute('position', attr)
+    const mat = new THREE.LineBasicMaterial({
+      color: '#ff6600',
+      transparent: true,
+      opacity: 0.85,
+      linewidth: 3,
+    })
+    return { geometry: geo, material: mat }
   }, [])
 
-  useFrame((_state, delta) => {
-    if (!groupRef.current || phase !== 'flying' || resolvedRef.current) return
-    if (paused) return
+  useEffect(() => {
+    trailGeoRef.current = geometry
+    return () => {
+      geometry.dispose()
+      material.dispose()
+    }
+  }, [geometry, material])
 
-    elapsedTime.current += delta
+  useFrame((_state, delta) => {
+    if (!groupRef.current || phase !== 'flying' || resolvedRef.current || paused) return
+    const dt = Math.min(delta, 0.1)
+
+    elapsedTime.current += dt
     const progress = Math.min(elapsedTime.current / TOTAL_FLIGHT_TIME, 1.0)
 
     // Linear interpolation from spawn to target
-    const currentPos = new THREE.Vector3().lerpVectors(spawnPosition, targetPosition, progress)
+    scratchPos.current.lerpVectors(spawnPosition, targetPosition, progress)
 
     // Parabolic vertical arc: 4 * h * p * (1 - p)
     const arcOffset = 4 * ARC_HEIGHT * progress * (1 - progress)
-    currentPos.y += arcOffset
+    scratchPos.current.y += arcOffset
 
-    groupRef.current.position.copy(currentPos)
+    groupRef.current.position.copy(scratchPos.current)
 
     // Dynamic flight orientation + realistic grenade spin/tumbling
     const nextProgress = Math.min(progress + 0.04, 1.0)
-    const nextPos = new THREE.Vector3().lerpVectors(spawnPosition, targetPosition, nextProgress)
-    nextPos.y += 4 * ARC_HEIGHT * nextProgress * (1 - nextProgress)
-    const forwardDir = nextPos.clone().sub(currentPos).normalize()
+    scratchNextPos.current.lerpVectors(spawnPosition, targetPosition, nextProgress)
+    scratchNextPos.current.y += 4 * ARC_HEIGHT * nextProgress * (1 - nextProgress)
+    scratchDir.current.subVectors(scratchNextPos.current, scratchPos.current).normalize()
 
-    if (forwardDir.lengthSq() > 0.01) {
-      const baseQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), forwardDir)
-      groupRef.current.quaternion.copy(baseQuat)
+    if (scratchDir.current.lengthSq() > 0.01) {
+      scratchQuat.current.setFromUnitVectors(upVec, scratchDir.current)
+      groupRef.current.quaternion.copy(scratchQuat.current)
     }
 
     // Realistic end-over-end grenade throw spin
     if (grenadeMeshRef.current) {
-      grenadeMeshRef.current.rotation.x += delta * 12.0
-      grenadeMeshRef.current.rotation.z += delta * 6.0
+      grenadeMeshRef.current.rotation.x += dt * 14.0
+      grenadeMeshRef.current.rotation.z += dt * 7.0
     }
 
-    // Update glowing fire trail
-    trailPositions.current.push(currentPos.clone())
-    if (trailPositions.current.length > GAME_CONFIG.bomb.trailLength) {
-      trailPositions.current.shift()
+    // Update glowing fire trail without array re-allocation
+    const count = Math.min(trailCount.current + 1, TRAIL_MAX_POINTS)
+    trailCount.current = count
+
+    const arr = trailPositions.current
+    // Shift previous points back
+    for (let i = count - 1; i > 0; i--) {
+      arr[i * 3] = arr[(i - 1) * 3]
+      arr[i * 3 + 1] = arr[(i - 1) * 3 + 1]
+      arr[i * 3 + 2] = arr[(i - 1) * 3 + 2]
     }
-    const points = trailPositions.current.flatMap((p) => [p.x, p.y, p.z])
-    const attr = new THREE.Float32BufferAttribute(points, 3)
-    trailGeometry.current.setAttribute('position', attr)
-    trailGeometry.current.computeBoundingSphere()
+    // Write new point at head
+    arr[0] = scratchPos.current.x
+    arr[1] = scratchPos.current.y
+    arr[2] = scratchPos.current.z
+
+    if (trailGeoRef.current) {
+      const posAttr = trailGeoRef.current.getAttribute('position') as THREE.BufferAttribute
+      posAttr.copyArray(arr)
+      posAttr.needsUpdate = true
+      trailGeoRef.current.setDrawRange(0, count)
+    }
 
     // Dead-Center Impact Trigger
     if (progress >= 1.0) {
@@ -107,7 +145,7 @@ export function Bomb({
 
   return (
     <group>
-      {/* 3D Realistic Military Frag Grenade (Scaled realistically to helicopter) */}
+      {/* 3D Realistic Military Frag Grenade */}
       <group ref={groupRef} position={spawnPosition.toArray()} scale={[0.72, 0.72, 0.72]}>
         <group ref={grenadeMeshRef}>
           {/* 1. Main Egg/Pineapple Fragmentation Body */}
@@ -121,7 +159,6 @@ export function Bomb({
           </mesh>
 
           {/* 2. Fragmentation Ribs & Segmentation Bands */}
-          {/* Horizontal rib bands */}
           <mesh castShadow position={[0, 0.12, 0]}>
             <torusGeometry args={[0.4, 0.035, 8, 24]} />
             <meshStandardMaterial color="#182416" roughness={0.5} metalness={0.7} />
@@ -130,8 +167,6 @@ export function Bomb({
             <torusGeometry args={[0.4, 0.035, 8, 24]} />
             <meshStandardMaterial color="#182416" roughness={0.5} metalness={0.7} />
           </mesh>
-
-          {/* Vertical rib studs */}
           <mesh castShadow position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
             <torusGeometry args={[0.41, 0.025, 8, 24]} />
             <meshStandardMaterial color="#182416" roughness={0.5} metalness={0.7} />
@@ -141,7 +176,7 @@ export function Bomb({
             <meshStandardMaterial color="#182416" roughness={0.5} metalness={0.7} />
           </mesh>
 
-          {/* 3. Tactical Yellow Identification Ring (High Explosive Mark) */}
+          {/* 3. Tactical Yellow Identification Ring */}
           <mesh castShadow position={[0, 0.26, 0]}>
             <cylinderGeometry args={[0.31, 0.35, 0.06, 16]} />
             <meshStandardMaterial color="#e6a100" roughness={0.3} metalness={0.5} />
@@ -165,7 +200,7 @@ export function Bomb({
             <meshStandardMaterial color="#c0c0c0" roughness={0.15} metalness={0.95} />
           </mesh>
 
-          {/* 7. Glowing Ignition Fuse / Beacon */}
+          {/* 7. Glowing Ignition Fuse Beacon */}
           <mesh position={[0, 0.56, 0]}>
             <sphereGeometry args={[0.07, 8, 8]} />
             <meshStandardMaterial
@@ -187,7 +222,7 @@ export function Bomb({
       </group>
 
       {/* Trailing Ignition Flame / Smoke Ribbon */}
-      <primitive object={trailLineObject} />
+      <primitive object={new THREE.Line(geometry, material)} />
     </group>
   )
 }

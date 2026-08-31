@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
-import { GameProvider, useGameState, useGameDispatch } from '@/game/GameContext'
+import { GameProvider } from '@/game/GameContext'
+import { useGameState, useGameDispatch } from '@/game/GameContextCore'
 import { GameScene } from '@/game/scene/GameScene'
 import { HUD } from '@/ui/hud/HUD'
 import { PauseOverlay } from '@/ui/overlays/PauseOverlay'

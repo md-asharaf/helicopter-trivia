@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { useGameState, useGameDispatch } from '@/game/GameContext'
+import confetti from 'canvas-confetti'
+import { useGameState, useGameDispatch } from '@/game/GameContextCore'
 
 function getResultOverlayClass(result: 'correct' | 'wrong' | 'miss'): string {
   if (result === 'correct') return 'result-overlay--correct'
@@ -8,9 +9,9 @@ function getResultOverlayClass(result: 'correct' | 'wrong' | 'miss'): string {
 }
 
 /**
- * Top Tactical Banner Result Notification.
- * No full-screen backdrop blur so the 3D explosion and action stay 100% visible.
- * Auto-advances to the next question cleanly without blocking buttons.
+ * Top Tactical Banner Result Notification (SKILL.md Law 5).
+ * Triggers victory confetti particle bursts on correct answers & streaks.
+ * Non-blocking HUD keep the 3D explosion and action 100% visible.
  */
 export function ResultOverlay() {
   const state = useGameState()
@@ -27,8 +28,19 @@ export function ResultOverlay() {
       overlayRef.current.classList.remove('result-overlay--enter')
       void overlayRef.current.offsetWidth // force reflow
       overlayRef.current.classList.add('result-overlay--enter')
+
+      // Confetti celebration on correct hits
+      if (isCorrect) {
+        confetti({
+          particleCount: state.streak >= 2 ? 80 : 45,
+          spread: state.streak >= 2 ? 85 : 60,
+          origin: { y: 0.25 },
+          colors: ['#00e5ff', '#ffd700', '#00ff88', '#ffffff'],
+          disableForReducedMotion: true,
+        })
+      }
     }
-  }, [isResolving, state.lastResult])
+  }, [isResolving, state.lastResult, isCorrect, state.streak])
 
   // Automatically advance to next question
   useEffect(() => {
@@ -53,7 +65,7 @@ export function ResultOverlay() {
       <div className="result-overlay__card">
         {isCorrect && (
           <div className="result-overlay__content">
-            <div className="result-overlay__title">TARGET DESTROYED!</div>
+            <div className="result-overlay__title">🎯 TARGET DESTROYED!</div>
             <div className="result-overlay__delta">{delta} PTS</div>
             {state.streak > 1 && (
               <div className="result-overlay__streak">🔥 STREAK × {state.streak}</div>
@@ -62,7 +74,7 @@ export function ResultOverlay() {
         )}
         {isWrong && (
           <div className="result-overlay__content">
-            <div className="result-overlay__title">WRONG TARGET!</div>
+            <div className="result-overlay__title">⚠️ WRONG TARGET!</div>
             <div className="result-overlay__delta">{delta} PTS</div>
             <div className="result-overlay__correct-reveal">
               Correct: <strong>{currentQuestion?.answer}</strong>
@@ -71,7 +83,7 @@ export function ResultOverlay() {
         )}
         {isMiss && (
           <div className="result-overlay__content">
-            <div className="result-overlay__title">TARGET MISSED!</div>
+            <div className="result-overlay__title">❌ TARGET MISSED!</div>
             <div className="result-overlay__delta">{delta} PTS</div>
             <div className="result-overlay__correct-reveal">
               Correct: <strong>{currentQuestion?.answer}</strong>

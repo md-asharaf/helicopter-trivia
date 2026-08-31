@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useGameDispatch } from '@/game/GameContext'
+import { useGameDispatch } from '@/game/GameContextCore'
 import { fetchQuiz } from '@/api/quizApi'
 import { audioManager } from '@/audio/AudioManager'
 

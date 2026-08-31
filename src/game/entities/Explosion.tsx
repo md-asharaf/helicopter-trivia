@@ -19,7 +19,7 @@ interface ParticleData {
 const FIRE_PARTICLES = 36
 const SMOKE_PARTICLES = 24
 const SPARK_PARTICLES = 30
-const DURATION = 1.6
+const DURATION = 1.5
 
 function getFlameColor(type: 'correct' | 'wrong' | 'miss'): string {
   if (type === 'correct') return '#ffaa00'
@@ -96,7 +96,8 @@ function createSparkParticles(position: THREE.Vector3): ParticleData[] {
 }
 
 /**
- * Hyper-realistic multi-stage Hollywood fire & explosion system.
+ * Hyper-realistic multi-stage Hollywood fire & explosion system (SKILL.md Law 1 & 3).
+ * Smooth clamped delta time particle physics and zero garbage generation.
  */
 export function Explosion({ position, type, onComplete }: ExplosionProps) {
   const fireMeshRef = useRef<THREE.InstancedMesh>(null)
@@ -108,7 +109,6 @@ export function Explosion({ position, type, onComplete }: ExplosionProps) {
 
   const isCorrect = type === 'correct'
 
-  // Fire particles: fast explosive expansion then decay
   const fireData = useMemo(() => createFireParticles(position), [position])
   const smokeData = useMemo(() => createSmokeParticles(position), [position])
   const sparkData = useMemo(() => createSparkParticles(position), [position])
@@ -116,6 +116,7 @@ export function Explosion({ position, type, onComplete }: ExplosionProps) {
   const dummy = useMemo(() => new THREE.Object3D(), [])
 
   useFrame((state, delta) => {
+    const dt = Math.min(delta, 0.1)
     if (startTime.current === null) {
       startTime.current = state.clock.elapsedTime
     }
@@ -131,9 +132,9 @@ export function Explosion({ position, type, onComplete }: ExplosionProps) {
     // 1. Animate Fireball Core
     if (fireMeshRef.current) {
       fireData.forEach((f, i) => {
-        f.pos.addScaledVector(f.vel, delta)
+        f.pos.addScaledVector(f.vel, dt)
         f.vel.multiplyScalar(0.92)
-        f.pos.y += delta * 1.5
+        f.pos.y += dt * 1.5
 
         dummy.position.copy(f.pos)
         const fireScale = Math.sin(progress * Math.PI * 0.9) * f.scale * (1.2 - progress * 0.8)
@@ -148,7 +149,7 @@ export function Explosion({ position, type, onComplete }: ExplosionProps) {
     // 2. Animate Billowing Smoke Plume
     if (smokeMeshRef.current) {
       smokeData.forEach((s, i) => {
-        s.pos.addScaledVector(s.vel, delta)
+        s.pos.addScaledVector(s.vel, dt)
         s.vel.x *= 0.94
         s.vel.z *= 0.94
         s.vel.y *= 0.97
@@ -167,8 +168,8 @@ export function Explosion({ position, type, onComplete }: ExplosionProps) {
     // 3. Animate Sparks / Embers
     if (sparkMeshRef.current) {
       sparkData.forEach((sp, i) => {
-        sp.pos.addScaledVector(sp.vel, delta)
-        sp.vel.y -= 14.0 * delta
+        sp.pos.addScaledVector(sp.vel, dt)
+        sp.vel.y -= 14.0 * dt
         sp.vel.multiplyScalar(0.96)
 
         dummy.position.copy(sp.pos)

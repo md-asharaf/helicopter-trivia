@@ -1,4 +1,4 @@
-import { useGameState } from '@/game/GameContext'
+import { useGameState } from '@/game/GameContextCore'
 
 export function QuestionPanel() {
   const state = useGameState()

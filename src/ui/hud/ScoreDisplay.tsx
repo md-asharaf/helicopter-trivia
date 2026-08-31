@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react'
-import { useGameState } from '@/game/GameContext'
+import { useGameState } from '@/game/GameContextCore'
 
 export function ScoreDisplay() {
   const state = useGameState()

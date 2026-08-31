@@ -1,4 +1,4 @@
-import { useGameState } from '@/game/GameContext'
+import { useGameState } from '@/game/GameContextCore'
 import { QuestionPanel } from './QuestionPanel'
 import { OptionsPanel } from './OptionsPanel'
 import { ScoreDisplay } from './ScoreDisplay'

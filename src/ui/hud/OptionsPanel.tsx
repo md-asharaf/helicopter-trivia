@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useGameState } from '@/game/GameContext'
+import { useGameState } from '@/game/GameContextCore'
 import { inputManager } from '@/controls/InputManager'
 
 const OPTION_LETTERS = ['A', 'B', 'C', 'D']
@@ -36,9 +36,7 @@ export function OptionsPanel() {
   if (!currentQuestion || options.length === 0) return null
 
   const handleOptionClick = (idx: number) => {
-    // Quick aim towards selected option
-    const targetX = TARGET_X_POSITIONS[idx]
-    inputManager.setAim(-targetX / 22, inputManager.aimY)
+    inputManager.setDirectTargetIndex(idx)
   }
 
   const handleLaunch = () => {
@@ -68,16 +66,18 @@ export function OptionsPanel() {
         {options.map((optText, idx) => {
           const letter = OPTION_LETTERS[idx]
           const isLocked = lockedIndex === idx
+          const numKey = idx + 1
           return (
             <button
               key={idx}
               className={`hud-option-card ${isLocked ? 'hud-option-card--locked' : ''}`}
               onClick={() => handleOptionClick(idx)}
-              title={optText}
+              title={`Press ${numKey} or click to target ${letter}`}
               aria-label={`Option ${letter}: ${optText}`}
             >
               <div className="hud-option-card__badge">
                 <span className="hud-option-card__letter">{letter}</span>
+                <span className="hud-option-card__key-badge">{numKey}</span>
                 {isLocked && <span className="hud-option-card__lock-icon">🎯</span>}
               </div>
               <div className="hud-option-card__text" title={optText}>

@@ -1,9 +1,12 @@
 import * as THREE from 'three'
+import { audioManager } from '@/audio/AudioManager'
+
+const TARGET_X_MAP = [-19, -6.5, 6.5, 19]
 
 /**
- * High-performance centralized input manager.
- * Supports WASD/Arrow keys, Mouse Aiming, and Touch Virtual Joystick.
- * When paused (e.g. during any overlay or modal), all inputs, movements, and firing are strictly blocked.
+ * Unified High-Performance Multi-Input Manager (SKILL.md Law 6).
+ * Handles Keyboard (WASD, Arrows, 1/2/3/4, Space, Shift/Ctrl), Mouse Aim, and Touch Joysticks.
+ * Zero-allocation in frame queries using pre-allocated scratch objects.
  */
 class InputManager {
   private keys: Record<string, boolean> = {}
@@ -12,7 +15,9 @@ class InputManager {
   private pausePending: boolean = false
   private hintPending: boolean = false
   private mutePending: boolean = false
+  private directSelectPending: number | null = null
   private touchMove = { x: 0, y: 0, z: 0 }
+  private scratchMove = new THREE.Vector3()
 
   // Normalized aim angles: -1 (far left) to +1 (far right)
   public aimX: number = 0
@@ -21,6 +26,14 @@ class InputManager {
   setAim(aimX: number, aimY: number): void {
     this.aimX = Math.max(-1, Math.min(1, aimX))
     this.aimY = Math.max(-0.6, Math.min(1, aimY))
+  }
+
+  setDirectTargetIndex(idx: number): void {
+    if (idx >= 0 && idx < TARGET_X_MAP.length) {
+      const targetX = TARGET_X_MAP[idx]
+      this.setAim(-targetX / 22, this.aimY)
+      audioManager.play('lockOn')
+    }
   }
 
   private boundHandlers: Array<() => void> = []
@@ -34,6 +47,7 @@ class InputManager {
         return
       }
       this.keys[e.code] = true
+
       if (e.code === 'Space') {
         e.preventDefault()
         this.firePending = true
@@ -41,6 +55,21 @@ class InputManager {
       if (e.code === 'KeyP' || e.code === 'Escape') this.pausePending = true
       if (e.code === 'KeyH') this.hintPending = true
       if (e.code === 'KeyM') this.mutePending = true
+
+      // Number keys 1, 2, 3, 4 for direct option target locking
+      if (e.code === 'Digit1' || e.code === 'Numpad1') {
+        this.setDirectTargetIndex(0)
+        this.directSelectPending = 0
+      } else if (e.code === 'Digit2' || e.code === 'Numpad2') {
+        this.setDirectTargetIndex(1)
+        this.directSelectPending = 1
+      } else if (e.code === 'Digit3' || e.code === 'Numpad3') {
+        this.setDirectTargetIndex(2)
+        this.directSelectPending = 2
+      } else if (e.code === 'Digit4' || e.code === 'Numpad4') {
+        this.setDirectTargetIndex(3)
+        this.directSelectPending = 3
+      }
     }
 
     const onKeyUp = (e: KeyboardEvent) => {
@@ -52,8 +81,8 @@ class InputManager {
       const nx = (e.clientX / window.innerWidth - 0.5) * 2
       const ny = (1 - e.clientY / window.innerHeight - 0.5) * 2
 
-      this.aimX = Math.max(-1, Math.min(1, nx * 1.2))
-      this.aimY = Math.max(-0.6, Math.min(1, ny * 1.2))
+      this.aimX = Math.max(-1, Math.min(1, nx * 1.25))
+      this.aimY = Math.max(-0.6, Math.min(1, ny * 1.25))
     }
 
     window.addEventListener('keydown', onKeyDown)
@@ -90,6 +119,7 @@ class InputManager {
     this.pausePending = false
     this.hintPending = false
     this.mutePending = false
+    this.directSelectPending = null
     this.touchMove = { x: 0, y: 0, z: 0 }
     this.aimX = 0
     this.aimY = 0
@@ -97,8 +127,8 @@ class InputManager {
 
   updateAimWithDelta(delta: number): void {
     if (this.paused) return
-    // Keyboard continuous aiming
-    const speed = 2.4 * delta
+    const dt = Math.min(delta, 0.1)
+    const speed = 2.6 * dt
     if (this.keys['KeyA'] || this.keys['ArrowLeft']) {
       this.aimX = Math.max(-1, this.aimX - speed)
     }
@@ -121,34 +151,33 @@ class InputManager {
     }
   }
 
-  // --- Flight Movement ---
+  // --- Flight Movement (Zero-GC) ---
   getMovement(): THREE.Vector3 {
-    if (this.paused) return new THREE.Vector3(0, 0, 0)
-
-    const move = new THREE.Vector3(0, 0, 0)
+    this.scratchMove.set(0, 0, 0)
+    if (this.paused) return this.scratchMove
 
     // Keyboard X: Left / Right
-    if (this.keys['KeyA'] || this.keys['ArrowLeft']) move.x -= 1
-    if (this.keys['KeyD'] || this.keys['ArrowRight']) move.x += 1
+    if (this.keys['KeyA'] || this.keys['ArrowLeft']) this.scratchMove.x -= 1
+    if (this.keys['KeyD'] || this.keys['ArrowRight']) this.scratchMove.x += 1
 
     // Keyboard Y: Rise / Descend (Shift/Ctrl or E/Q)
-    if (this.keys['ShiftLeft'] || this.keys['ShiftRight'] || this.keys['KeyE']) move.y += 1
-    if (this.keys['ControlLeft'] || this.keys['ControlRight'] || this.keys['KeyQ']) move.y -= 1
+    if (this.keys['ShiftLeft'] || this.keys['ShiftRight'] || this.keys['KeyE']) this.scratchMove.y += 1
+    if (this.keys['ControlLeft'] || this.keys['ControlRight'] || this.keys['KeyQ']) this.scratchMove.y -= 1
 
     // Keyboard Z: Forward / Backward (W / S)
-    if (this.keys['KeyW'] || this.keys['ArrowUp']) move.z -= 1
-    if (this.keys['KeyS'] || this.keys['ArrowDown']) move.z += 1
+    if (this.keys['KeyW'] || this.keys['ArrowUp']) this.scratchMove.z -= 1
+    if (this.keys['KeyS'] || this.keys['ArrowDown']) this.scratchMove.z += 1
 
     // Add touch joystick movement
-    move.x += this.touchMove.x
-    move.y += this.touchMove.y
-    move.z += this.touchMove.z
+    this.scratchMove.x += this.touchMove.x
+    this.scratchMove.y += this.touchMove.y
+    this.scratchMove.z += this.touchMove.z
 
-    if (move.lengthSq() > 1) {
-      move.normalize()
+    if (this.scratchMove.lengthSq() > 1) {
+      this.scratchMove.normalize()
     }
 
-    return move
+    return this.scratchMove
   }
 
   // --- Actions ---
@@ -178,6 +207,12 @@ class InputManager {
   consumeMute(): boolean {
     const val = this.mutePending
     this.mutePending = false
+    return val
+  }
+
+  consumeDirectSelect(): number | null {
+    const val = this.directSelectPending
+    this.directSelectPending = null
     return val
   }
 

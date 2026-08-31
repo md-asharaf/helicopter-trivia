@@ -1,41 +1,41 @@
 /**
- * Bright Coastal Daylight Lighting.
- * Balanced direct sunlight and sky hemisphere fill for rich, saturated colors without washout.
+ * Cinematic PBR Alpine Daylight Lighting (SKILL.md Law 1 & Law 3).
+ * Balanced direct sunlight, sky hemisphere fill, and canyon bounce lighting.
  */
 export function Lighting() {
   return (
     <>
-      {/* Primary Key Light — Crisp Sunlight */}
+      {/* Primary Key Light — Warm Alpine Sunlight */}
       <directionalLight
-        position={[35, 75, -90]}
-        intensity={1.65}
-        color="#fffdf5"
+        position={[45, 85, -95]}
+        intensity={2.1}
+        color="#fffcf2"
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
         shadow-camera-near={1}
-        shadow-camera-far={400}
-        shadow-camera-left={-140}
-        shadow-camera-right={140}
-        shadow-camera-top={140}
-        shadow-camera-bottom={-140}
-        shadow-bias={-0.0004}
+        shadow-camera-far={450}
+        shadow-camera-left={-160}
+        shadow-camera-right={160}
+        shadow-camera-top={160}
+        shadow-camera-bottom={-160}
+        shadow-bias={-0.0003}
       />
 
-      {/* Sky Blue & Island Forest Ambient Fill */}
+      {/* Sky Blue & Alpine Pine Ground Ambient Fill */}
       <hemisphereLight
-        args={['#8ec8f0', '#255220', 0.85]}
+        args={['#93c5fd', '#143c16', 0.92]}
       />
 
-      {/* Secondary Fill Light */}
+      {/* Secondary Fill Light from Canyon Horizon */}
       <directionalLight
-        position={[-50, 45, 50]}
-        intensity={0.4}
-        color="#b0d8f6"
+        position={[-60, 48, 60]}
+        intensity={0.45}
+        color="#bae6fd"
       />
 
-      {/* Ambient base */}
-      <ambientLight intensity={0.25} />
+      {/* Ambient Fill Base */}
+      <ambientLight intensity={0.28} color="#e0f2fe" />
     </>
   )
 }

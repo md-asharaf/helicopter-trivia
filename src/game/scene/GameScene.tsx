@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import * as THREE from 'three'
 import { Canvas } from '@react-three/fiber'
-import { Physics } from '@react-three/rapier'
-import { useGameState, useGameDispatch } from '@/game/GameContext'
+import { useGameState, useGameDispatch } from '@/game/GameContextCore'
 import { inputManager } from '@/controls/InputManager'
 import { audioManager } from '@/audio/AudioManager'
 import { PlayerHelicopter, type PlayerHelicopterHandle } from '@/game/entities/PlayerHelicopter'
@@ -18,7 +17,7 @@ import { SpeedLines } from './SpeedLines'
 import { CameraRig } from './CameraRig'
 import type { BombPhase, HelicopterOption } from '@/game/gameTypes'
 
-// 4 enemy helicopters neatly lined up in closer formation
+// 4 enemy helicopters lined up in tactical chase convoy formation
 const BASE_SPAWN_POSITIONS = [
   new THREE.Vector3(-19, 16.5, -26),
   new THREE.Vector3(-6.5, 16.5, -26),
@@ -52,11 +51,12 @@ export function GameScene() {
   const [shake, setShake] = useState(false)
   const [bombPosition, setBombPosition] = useState<THREE.Vector3 | null>(null)
   const [impactPosition, setImpactPosition] = useState<THREE.Vector3 | null>(null)
+  const [playerPositionState, setPlayerPositionState] = useState<THREE.Vector3>(() => new THREE.Vector3(0, 20, 0))
 
   const spawnPositions = useMemo(() => BASE_SPAWN_POSITIONS, [])
 
   const isPaused =
-    state.phase !== 'playing' && state.phase !== 'bombing' ||
+    (state.phase !== 'playing' && state.phase !== 'bombing') ||
     state.confirmPending !== null ||
     state.hintConfirmVisible ||
     state.hintVisible
@@ -90,25 +90,57 @@ export function GameScene() {
     audioManager.setMuted(state.muted)
   }, [state.muted])
 
-  // Reset on question change
+  // Track player position outside render loop
   useEffect(() => {
+    if (!isPlaying) return
+    let animId: number
+    const tempPos = new THREE.Vector3()
+
+    const updatePlayerPos = () => {
+      if (playerRef.current) {
+        playerRef.current.getWorldPosition(tempPos)
+        setPlayerPositionState((prev) => {
+          if (prev.distanceToSquared(tempPos) > 0.05) {
+            return tempPos.clone()
+          }
+          return prev
+        })
+      }
+      animId = requestAnimationFrame(updatePlayerPos)
+    }
+
+    animId = requestAnimationFrame(updatePlayerPos)
+    return () => cancelAnimationFrame(animId)
+  }, [isPlaying])
+
+  // Adjust state during render when question session changes (standard React pattern)
+  const [prevSessionId, setPrevSessionId] = useState(state.questionSessionId)
+  if (state.questionSessionId !== prevSessionId) {
+    setPrevSessionId(state.questionSessionId)
     setCrashedHelicopters(new Set())
     setBomb(null)
     setBombPosition(null)
     setImpactPosition(null)
     setExplosion(null)
-  }, [state.questionSessionId])
+  }
 
   // Poll fire / controls
   useEffect(() => {
     if (!isPlaying) return
     let rafId: number
+    const tempSpawn = new THREE.Vector3()
 
     const poll = () => {
+      // Direct number key target selection (1/2/3/4)
+      const directIdx = inputManager.consumeDirectSelect()
+      if (directIdx !== null && directIdx >= 0 && directIdx < BASE_SPAWN_POSITIONS.length) {
+        // Direct target selected
+      }
+
       if (inputManager.consumeFire() && !bomb) {
         const player = playerRef.current
         if (player) {
-          const pos = player.getWorldPosition()
+          player.getWorldPosition(tempSpawn)
 
           // Target lock calculation
           const rawAimX = -inputManager.aimX * 22
@@ -123,7 +155,7 @@ export function GameScene() {
           })
 
           const targetStation = BASE_SPAWN_POSITIONS[closestIdx]
-          const spawnPos = pos.clone().add(new THREE.Vector3(0, -0.5, -1.0))
+          const spawnPos = tempSpawn.clone().add(new THREE.Vector3(0, -0.5, -1.0))
 
           setBomb({
             id: crypto.randomUUID(),
@@ -165,9 +197,10 @@ export function GameScene() {
       const result = isCorrect ? 'correct' : 'wrong'
 
       const hitIdx = state.currentOptions.findIndex((o) => o.optionText === optionText)
-      const hitPos = (hitIdx >= 0 && BASE_SPAWN_POSITIONS[hitIdx])
-        ? BASE_SPAWN_POSITIONS[hitIdx].clone()
-        : new THREE.Vector3(0, 16.5, -26)
+      const hitPos =
+        hitIdx >= 0 && BASE_SPAWN_POSITIONS[hitIdx]
+          ? BASE_SPAWN_POSITIONS[hitIdx].clone()
+          : new THREE.Vector3(0, 16.5, -26)
 
       setExplosion({ id: crypto.randomUUID(), position: hitPos, type: result })
       setImpactPosition(hitPos)
@@ -180,11 +213,21 @@ export function GameScene() {
       }
 
       audioManager.play('explosion')
-      setTimeout(() => audioManager.play(isCorrect ? 'correct' : 'wrong'), 250)
+      setTimeout(() => {
+        if (isCorrect) {
+          if (state.streak >= 2) {
+            audioManager.play('streakCombo')
+          } else {
+            audioManager.play('correct')
+          }
+        } else {
+          audioManager.play('wrong')
+        }
+      }, 250)
 
       dispatch({ type: 'QUESTION_RESOLVED', result, sessionId })
     },
-    [dispatch, state.questionSessionId, state.currentOptions]
+    [dispatch, state.questionSessionId, state.currentOptions, state.streak]
   )
 
   const handleMiss = useCallback(
@@ -210,44 +253,47 @@ export function GameScene() {
     setBomb((prev) => (prev ? { ...prev, phase } : null))
   }, [])
 
+  const handleTargetSelected = useCallback((index: number) => {
+    inputManager.setDirectTargetIndex(index)
+  }, [])
+
   const currentQuestion = state.questions[state.currentQuestionIndex]
   const showTrajectory = isPlaying && !bomb
-  const playerPos = playerRef.current?.getWorldPosition() ?? new THREE.Vector3(0, 16, 0)
 
   return (
     <div id="game-canvas" className={shake ? 'screen-shake' : ''}>
       <Canvas
-        shadows
+        shadows={{ type: THREE.PCFShadowMap }}
         camera={{ fov: 54, near: 0.5, far: 400, position: [0, 19, 15] }}
         gl={{
           antialias: true,
           powerPreference: 'high-performance',
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.15,
+          toneMappingExposure: 1.18,
         }}
-        dpr={[1, 1.5]}
+        dpr={[1, Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 2.0)]}
       >
-        <Physics gravity={[0, -9.81, 0]} paused={isPaused}>
-          <Lighting />
-          <Environment />
-          <Terrain paused={isPaused} />
-          <Clouds paused={isPaused} />
-          <SpeedLines paused={isPaused} />
+        <Lighting />
+        <Environment />
+        <Terrain paused={isPaused} />
+        <Clouds paused={isPaused} />
+        <SpeedLines paused={isPaused} />
 
-          {/* Player helicopter */}
-          <PlayerHelicopter ref={playerRef} paused={isPaused} />
+        {/* Player helicopter */}
+        <PlayerHelicopter ref={playerRef} paused={isPaused} />
 
-          {/* Camera rig */}
-          <CameraRig
-            playerRef={playerRef}
-            bombPosition={bombPosition}
-            impactPosition={impactPosition}
-            shake={shake}
-            paused={isPaused}
-          />
+        {/* Camera rig */}
+        <CameraRig
+          playerRef={playerRef}
+          bombPosition={bombPosition}
+          impactPosition={impactPosition}
+          shake={shake}
+          paused={isPaused}
+        />
 
-          {/* 4 Front Enemy Helicopters */}
-          {currentQuestion && state.currentOptions.map((option, i) => (
+        {/* 4 Front Enemy Helicopters */}
+        {currentQuestion &&
+          state.currentOptions.map((option, i) => (
             <EnemyHelicopter
               key={`${state.questionSessionId}-${i}`}
               optionIndex={option.optionIndex}
@@ -257,44 +303,44 @@ export function GameScene() {
               paused={isPaused}
               spawnPosition={spawnPositions[i]}
               crashed={crashedHelicopters.has(i)}
+              onTargetSelected={handleTargetSelected}
               onCollisionEnter={handleHit}
             />
           ))}
 
-          {/* Active Deterministic Ballistic Bomb */}
-          {bomb && bomb.phase === 'flying' && (
-            <Bomb
-              key={bomb.id}
-              spawnPosition={bomb.spawnPosition}
-              targetPosition={bomb.targetPosition}
-              targetOption={bomb.targetOption}
-              sessionId={bomb.sessionId}
-              onHit={handleHit}
-              onMiss={handleMiss}
-              paused={isPaused}
-              phase={bomb.phase}
-              onPhaseChange={handleBombPhaseChange}
-            />
-          )}
+        {/* Active Deterministic Ballistic Bomb */}
+        {bomb && bomb.phase === 'flying' && (
+          <Bomb
+            key={bomb.id}
+            spawnPosition={bomb.spawnPosition}
+            targetPosition={bomb.targetPosition}
+            targetOption={bomb.targetOption}
+            sessionId={bomb.sessionId}
+            onHit={handleHit}
+            onMiss={handleMiss}
+            paused={isPaused}
+            phase={bomb.phase}
+            onPhaseChange={handleBombPhaseChange}
+          />
+        )}
 
-          {/* Trajectory preview line */}
-          {showTrajectory && (
-            <TrajectoryLine
-              playerPosition={playerPos}
-              visible={showTrajectory}
-            />
-          )}
+        {/* Trajectory preview line */}
+        {showTrajectory && (
+          <TrajectoryLine
+            playerPosition={playerPositionState}
+            visible={showTrajectory}
+          />
+        )}
 
-          {/* Explosion effect */}
-          {explosion && (
-            <Explosion
-              key={explosion.id}
-              position={explosion.position}
-              type={explosion.type}
-              onComplete={() => setExplosion(null)}
-            />
-          )}
-        </Physics>
+        {/* Explosion effect */}
+        {explosion && (
+          <Explosion
+            key={explosion.id}
+            position={explosion.position}
+            type={explosion.type}
+            onComplete={() => setExplosion(null)}
+          />
+        )}
       </Canvas>
     </div>
   )

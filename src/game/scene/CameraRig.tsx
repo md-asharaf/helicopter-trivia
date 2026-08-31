@@ -15,15 +15,17 @@ interface CameraRigProps {
 }
 
 /**
- * Cinematic Movie Chase Camera Rig.
- * Rides directly behind the chase helicopter in hot pursuit.
- * Dynamic lateral tracking, banking roll, and wind turbulence.
+ * Cinematic Movie Chase Camera Rig (SKILL.md Law 2).
+ * Smooth chase tracking with clamped delta time and dynamic camera shake.
  */
 export function CameraRig({ playerRef, bombPosition, impactPosition, shake, paused = false }: CameraRigProps) {
   const { camera } = useThree()
   const mode = useRef<CameraMode>('following')
   const shakeTimer = useRef(0)
   const targetPos = useRef(new THREE.Vector3(0, 20.5, 14))
+  const desiredPos = useRef(new THREE.Vector3())
+  const lookTarget = useRef(new THREE.Vector3())
+  const scratchPlayerPos = useRef(new THREE.Vector3())
 
   useEffect(() => {
     if (bombPosition) {
@@ -34,10 +36,12 @@ export function CameraRig({ playerRef, bombPosition, impactPosition, shake, paus
   useEffect(() => {
     if (impactPosition) {
       mode.current = 'impact'
-      setTimeout(() => {
+      const t1 = setTimeout(() => {
         mode.current = 'returning'
-        setTimeout(() => { mode.current = 'following' }, 1200)
+        const t2 = setTimeout(() => { mode.current = 'following' }, 1200)
+        return () => clearTimeout(t2)
       }, 600)
+      return () => clearTimeout(t1)
     }
   }, [impactPosition])
 
@@ -49,42 +53,41 @@ export function CameraRig({ playerRef, bombPosition, impactPosition, shake, paus
 
   useFrame((_state, delta) => {
     if (paused) return
+    const dt = Math.min(delta, 0.1)
     const player = playerRef.current
     if (!player) return
 
-    const playerPos = player.getWorldPosition()
+    const playerPos = player.getWorldPosition(scratchPlayerPos.current)
     const { followLag, bombFollowLag, shakeMagnitude } = GAME_CONFIG.camera
-
-    let desiredPos: THREE.Vector3
 
     switch (mode.current) {
       case 'bombing': {
         if (bombPosition) {
-          desiredPos = new THREE.Vector3(
+          desiredPos.current.set(
             bombPosition.x * 0.4,
             bombPosition.y + 4.5,
             bombPosition.z + 12
           )
         } else {
-          desiredPos = new THREE.Vector3(playerPos.x * 0.6, playerPos.y + 3.8, playerPos.z + 14)
+          desiredPos.current.set(playerPos.x * 0.6, playerPos.y + 3.8, playerPos.z + 14)
         }
         break
       }
       case 'impact': {
         if (impactPosition) {
-          desiredPos = new THREE.Vector3(
+          desiredPos.current.set(
             impactPosition.x * 0.3,
             impactPosition.y + 6,
             impactPosition.z + 16
           )
         } else {
-          desiredPos = new THREE.Vector3(playerPos.x * 0.6, playerPos.y + 3.8, playerPos.z + 14)
+          desiredPos.current.set(playerPos.x * 0.6, playerPos.y + 3.8, playerPos.z + 14)
         }
         break
       }
       default: {
         // Elevated dynamic dogfight chase camera
-        desiredPos = new THREE.Vector3(
+        desiredPos.current.set(
           playerPos.x * 0.55,
           playerPos.y + 4.8 + Math.max(0, (playerPos.y - 18) * 0.25),
           playerPos.z + 16.0
@@ -94,27 +97,34 @@ export function CameraRig({ playerRef, bombPosition, impactPosition, shake, paus
     }
 
     const lag = mode.current === 'bombing' ? bombFollowLag : followLag
-    targetPos.current.lerp(desiredPos, delta * lag)
-    camera.position.copy(targetPos.current)
+    targetPos.current.lerp(desiredPos.current, 1.0 - Math.exp(-dt * lag * 30))
 
-    // Dynamic pitch looking down at island/river
-    const lookTarget = mode.current === 'bombing' && bombPosition
-      ? bombPosition
-      : new THREE.Vector3(
-          playerPos.x * 0.3,
-          playerPos.y * 0.65 - 2.5,
-          -52
-        )
-
-    camera.lookAt(lookTarget)
+    let camX = targetPos.current.x
+    let camY = targetPos.current.y
+    const camZ = targetPos.current.z
 
     // Screen Shake effect
     if (shakeTimer.current > 0) {
-      shakeTimer.current -= delta
+      shakeTimer.current -= dt
       const magnitude = shakeMagnitude * (shakeTimer.current / (GAME_CONFIG.camera.shakeDuration / 1000))
-      camera.position.x += (Math.random() - 0.5) * magnitude
-      camera.position.y += (Math.random() - 0.5) * magnitude * 0.5
+      camX += (Math.random() - 0.5) * magnitude
+      camY += (Math.random() - 0.5) * magnitude * 0.5
     }
+
+    camera.position.set(camX, camY, camZ)
+
+    // Dynamic pitch looking down at island/river
+    if (mode.current === 'bombing' && bombPosition) {
+      lookTarget.current.copy(bombPosition)
+    } else {
+      lookTarget.current.set(
+        playerPos.x * 0.3,
+        playerPos.y * 0.65 - 2.5,
+        -52
+      )
+    }
+
+    camera.lookAt(lookTarget.current)
   })
 
   return null

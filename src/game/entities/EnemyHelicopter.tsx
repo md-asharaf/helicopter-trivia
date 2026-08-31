@@ -1,15 +1,14 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
-import { RigidBody, type RapierRigidBody } from '@react-three/rapier'
 import { HelicopterMesh } from './HelicopterMesh'
 import { AnswerLabel } from './AnswerLabel'
 import type { HelicopterOption } from '@/game/gameTypes'
-import { GAME_CONFIG } from '@/game/gameConfig'
 import { randFloat } from '@/utils/math'
+import { inputManager } from '@/controls/InputManager'
 
 export interface EnemyHelicopterHandle {
-  getWorldPosition: () => THREE.Vector3
+  getWorldPosition: (out?: THREE.Vector3) => THREE.Vector3
 }
 
 interface EnemyHelicopterProps extends HelicopterOption {
@@ -17,36 +16,42 @@ interface EnemyHelicopterProps extends HelicopterOption {
   paused: boolean
   spawnPosition: THREE.Vector3
   crashed: boolean
+  onTargetSelected?: (index: number) => void
   onCollisionEnter?: (optionText: string, isCorrect: boolean, sessionId: string) => void
 }
 
 /**
- * Enemy Convoy Helicopter.
- * When hit, catches realistic fire with trailing black smoke and spins down.
+ * Enemy Convoy Helicopter (SKILL.md Law 1 & Law 3).
+ * Interactive 3D target with direct click targeting, smooth organic formation sway,
+ * and spectacular fire dive when hit.
  */
 export const EnemyHelicopter = forwardRef<EnemyHelicopterHandle, EnemyHelicopterProps>(
   function EnemyHelicopter(
-    { optionIndex, optionText, isCorrect, sessionId, paused, spawnPosition, crashed, onCollisionEnter },
+    { optionIndex, optionText: _optionText, isCorrect: _isCorrect, sessionId: _sessionId, paused, spawnPosition, crashed, onTargetSelected },
     ref
   ) {
     const groupRef = useRef<THREE.Group>(null)
-    const rbRef = useRef<RapierRigidBody>(null)
     const crashStartTime = useRef<number | null>(null)
     const crashAngular = useRef(new THREE.Vector3(
       randFloat(-4, 4), randFloat(-2, 2), randFloat(-5, 5)
     ))
     const timeOffset = useRef(optionIndex * 1.3)
+    const scratchPos = useRef(new THREE.Vector3())
 
     useImperativeHandle(ref, () => ({
-      getWorldPosition: () => {
-        const pos = new THREE.Vector3()
-        groupRef.current?.getWorldPosition(pos)
-        return pos
+      getWorldPosition: (out = scratchPos.current) => {
+        if (groupRef.current) {
+          groupRef.current.getWorldPosition(out)
+        } else {
+          out.copy(spawnPosition)
+        }
+        return out
       },
     }))
 
     useFrame((state, delta) => {
       if (!groupRef.current || paused) return
+      const dt = Math.min(delta, 0.1)
 
       if (crashed) {
         // === SPECTACULAR BURNING CRASH DIVE ===
@@ -55,19 +60,13 @@ export const EnemyHelicopter = forwardRef<EnemyHelicopterHandle, EnemyHelicopter
         }
         const elapsed = state.clock.elapsedTime - crashStartTime.current
         const fallSpeed = 12 + elapsed * 18
-        groupRef.current.position.y -= fallSpeed * delta
-        groupRef.current.position.z += 8 * delta // drops behind in chase
-        groupRef.current.rotation.x += crashAngular.current.x * delta
-        groupRef.current.rotation.y += crashAngular.current.y * delta
-        groupRef.current.rotation.z += crashAngular.current.z * delta
-
-        if (rbRef.current) {
-          rbRef.current.setNextKinematicTranslation(groupRef.current.position)
-        }
+        groupRef.current.position.y -= fallSpeed * dt
+        groupRef.current.position.z += 8 * dt // drops behind in chase
+        groupRef.current.rotation.x += crashAngular.current.x * dt
+        groupRef.current.rotation.y += crashAngular.current.y * dt
+        groupRef.current.rotation.z += crashAngular.current.z * dt
         return
       }
-
-      if (paused) return
 
       // === HIGH-SPEED CONVOY FORMATION FLIGHT ===
       const t = state.clock.elapsedTime + timeOffset.current
@@ -85,13 +84,6 @@ export const EnemyHelicopter = forwardRef<EnemyHelicopterHandle, EnemyHelicopter
         Math.sin(t * 0.9) * 0.05,
         -Math.sin(t * 1.4) * 0.08
       )
-
-      if (rbRef.current) {
-        rbRef.current.setNextKinematicTranslation(groupRef.current.position)
-        rbRef.current.setNextKinematicRotation(
-          new THREE.Quaternion().setFromEuler(groupRef.current.rotation)
-        )
-      }
     })
 
     useEffect(() => {
@@ -104,35 +96,21 @@ export const EnemyHelicopter = forwardRef<EnemyHelicopterHandle, EnemyHelicopter
       }
     }, [crashed, spawnPosition])
 
-    const userData = {
-      type: 'helicopter' as const,
-      optionIndex,
-      optionText,
-      isCorrect,
-      sessionId,
+    // Direct click on 3D helicopter selects it as target
+    const handlePointerDown = (e: { stopPropagation: () => void }) => {
+      e.stopPropagation()
+      if (!crashed && !paused) {
+        inputManager.setDirectTargetIndex(optionIndex)
+        onTargetSelected?.(optionIndex)
+      }
     }
 
     return (
-      <group ref={groupRef} position={spawnPosition.toArray()}>
-        <RigidBody
-          ref={rbRef}
-          type="kinematicPosition"
-          colliders="ball"
-          args={[GAME_CONFIG.enemy.colliderRadius]}
-          userData={userData}
-          sensor={false}
-          onCollisionEnter={(e) => {
-            const other = e.other.rigidBodyObject?.userData as { type?: string } | undefined
-            if (other?.type === 'bomb') {
-              onCollisionEnter?.(optionText, isCorrect, sessionId)
-            }
-          }}
-        >
-          <mesh visible={false}>
-            <sphereGeometry args={[GAME_CONFIG.enemy.colliderRadius]} />
-          </mesh>
-        </RigidBody>
-
+      <group
+        ref={groupRef}
+        position={spawnPosition.toArray()}
+        onPointerDown={handlePointerDown}
+      >
         <HelicopterMesh isPlayer={false} crashed={crashed} />
 
         {/* Trailing Fire & Smoke when hit/crashed */}

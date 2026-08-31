@@ -602,6 +602,27 @@ html, body {
   color: #030f1c;
 }
 
+.hud-option-card__key-badge {
+  position: absolute;
+  bottom: -6px;
+  right: -6px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid var(--cyan-dim);
+  border-radius: 3px;
+  font-family: var(--font-title);
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--cyan);
+  padding: 0 3px;
+  line-height: 1.2;
+}
+
+.hud-option-card--locked .hud-option-card__key-badge {
+  background: #030f1c;
+  color: var(--cyan);
+  border-color: var(--cyan);
+}
+
 .hud-option-card__lock-icon {
   position: absolute;
   top: -8px;

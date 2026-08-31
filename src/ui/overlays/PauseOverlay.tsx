@@ -1,4 +1,4 @@
-import { useGameDispatch } from '@/game/GameContext'
+import { useGameDispatch } from '@/game/GameContextCore'
 import { audioManager } from '@/audio/AudioManager'
 import { Modal } from './Modal'
 

@@ -1,6 +1,6 @@
-import { useRef } from 'react'
+import { useRef, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { useGameState } from '@/game/GameContext'
+import { useGameState } from '@/game/GameContextCore'
 
 /**
  * Debug overlay — only renders when VITE_GAME_DEBUG=true.
@@ -14,13 +14,17 @@ export function DebugOverlay() {
 function DebugContent() {
   const state = useGameState()
   const fpsRef = useRef<HTMLDivElement>(null)
-  const lastTime = useRef(performance.now())
+  const lastTime = useRef(0)
   const frames = useRef(0)
+
+  useEffect(() => {
+    lastTime.current = performance.now()
+  }, [])
 
   useFrame(() => {
     frames.current++
     const now = performance.now()
-    if (now - lastTime.current >= 500) {
+    if (lastTime.current > 0 && now - lastTime.current >= 500) {
       const fps = Math.round((frames.current * 1000) / (now - lastTime.current))
       if (fpsRef.current) fpsRef.current.textContent = `FPS: ${fps}`
       frames.current = 0
