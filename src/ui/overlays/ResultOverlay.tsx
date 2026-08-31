@@ -67,9 +67,6 @@ export function ResultOverlay() {
           <div className="result-overlay__content">
             <div className="result-overlay__title">🎯 TARGET DESTROYED!</div>
             <div className="result-overlay__delta">{delta} PTS</div>
-            {state.streak > 1 && (
-              <div className="result-overlay__streak">🔥 STREAK × {state.streak}</div>
-            )}
           </div>
         )}
         {isWrong && (

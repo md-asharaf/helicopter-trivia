@@ -25,6 +25,10 @@ const BASE_SPAWN_POSITIONS = [
   new THREE.Vector3(19, 16.5, -26),
 ]
 
+const BOMB_SPAWN_OFFSET = new THREE.Vector3(0, -0.5, -1.0)
+const DEFAULT_HIT_POS = new THREE.Vector3(0, 16.5, -26)
+const MISS_POS = new THREE.Vector3(0, 2, -26)
+
 interface BombState {
   id: string
   spawnPosition: THREE.Vector3
@@ -155,7 +159,7 @@ export function GameScene() {
           })
 
           const targetStation = BASE_SPAWN_POSITIONS[closestIdx]
-          const spawnPos = tempSpawn.clone().add(new THREE.Vector3(0, -0.5, -1.0))
+          const spawnPos = tempSpawn.clone().add(BOMB_SPAWN_OFFSET)
 
           setBomb({
             id: crypto.randomUUID(),
@@ -200,7 +204,7 @@ export function GameScene() {
       const hitPos =
         hitIdx >= 0 && BASE_SPAWN_POSITIONS[hitIdx]
           ? BASE_SPAWN_POSITIONS[hitIdx].clone()
-          : new THREE.Vector3(0, 16.5, -26)
+          : DEFAULT_HIT_POS.clone()
 
       setExplosion({ id: crypto.randomUUID(), position: hitPos, type: result })
       setImpactPosition(hitPos)
@@ -233,7 +237,7 @@ export function GameScene() {
   const handleMiss = useCallback(
     (sessionId: string) => {
       if (sessionId !== state.questionSessionId) return
-      const missPos = new THREE.Vector3(0, 2, -26)
+      const missPos = MISS_POS.clone()
 
       setExplosion({ id: crypto.randomUUID(), position: missPos, type: 'miss' })
       setImpactPosition(missPos)
