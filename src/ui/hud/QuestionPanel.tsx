@@ -16,7 +16,7 @@ export function QuestionPanel() {
         </span>
       </div>
       <p className="question-text" aria-live="polite">
-        {currentQuestion.prompt}
+        {currentQuestion.question}
       </p>
       <div className="question-panel__tip">
         AIM with Mouse / Keys • Press SPACE or Click to Throw Bomb

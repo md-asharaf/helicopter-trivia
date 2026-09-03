@@ -7,144 +7,82 @@ export class QuizValidationError extends Error {
   }
 }
 
-/**
- * Extracts a clean display string from a primitive or an object
- */
-function extractFieldString(field: unknown): string {
-  if (typeof field === 'string' || typeof field === 'number' || typeof field === 'boolean') {
-    return String(field).trim()
-  }
-  if (typeof field === 'object' && field !== null) {
-    const obj = field as Record<string, unknown>
-    const candidates = [obj.value, obj.label, obj.lable, obj.text, obj.title]
-    for (const val of candidates) {
-      if (val !== undefined && val !== null && String(val).trim() !== '') {
-        return String(val).trim()
-      }
-    }
-  }
-  return ''
-}
-
 function resolveMatchingAnswer(
   answer: string,
-  options: string[],
-  rawOptions: unknown[]
+  options: string[]
 ): string | null {
   const direct = options.find((opt) => opt.toLowerCase() === answer.toLowerCase())
   if (direct) return direct
 
-  // Check letter indexing (A, B, C, D)
   const optionLetters = ['a', 'b', 'c', 'd']
   const letterIdx = optionLetters.indexOf(answer.toLowerCase())
   if (letterIdx >= 0 && options[letterIdx]) {
     return options[letterIdx]
   }
 
-  // Check numeric index
   const numIdx = parseInt(answer, 10)
   if (!isNaN(numIdx) && numIdx >= 0 && numIdx < options.length) {
     return options[numIdx]
   }
-
-  // Check nested object matches in raw options
-  for (let i = 0; i < rawOptions.length; i++) {
-    const rawOpt = rawOptions[i]
-    if (typeof rawOpt === 'object' && rawOpt !== null) {
-      const r = rawOpt as Record<string, unknown>
-      const val = extractFieldString(r.value)
-      const lbl = extractFieldString(r.label ?? r.lable)
-      if (
-        (val && val.toLowerCase() === answer.toLowerCase()) ||
-        (lbl && lbl.toLowerCase() === answer.toLowerCase())
-      ) {
-        return options[i]
-      }
-    }
-  }
-
   return null
 }
 
-/**
- * Validates and normalizes a single quiz question. Throws QuizValidationError on any issue.
- */
-function validateQuestion(q: unknown, index: number): QuizQuestion {
-  if (typeof q !== 'object' || q === null) {
+function validateQuestion(q: QuizQuestion, index: number): QuizQuestion {
+  if (q === null) {
     throw new QuizValidationError(`Question ${index + 1} is not an object`)
   }
 
-  const obj = q as Record<string, unknown>
 
-  const prompt = extractFieldString(obj.prompt ?? obj.question ?? obj.title ?? obj.Word)
-  if (!prompt) {
-    throw new QuizValidationError(`Question ${index + 1}: missing or empty "prompt"`)
+  if (!q.question) {
+    throw new QuizValidationError(`Question ${index + 1}: missing or empty "question"`)
   }
 
-  const hint = extractFieldString(obj.hint ?? obj.clue ?? obj.description ?? obj.Hint)
-  if (!hint) {
+  if (!q.hint) {
     throw new QuizValidationError(`Question ${index + 1}: missing or empty "hint"`)
   }
 
-  const rawOptions = obj.options ?? obj.choices ?? obj.answers
-  if (!Array.isArray(rawOptions)) {
+  const options = q.options;
+  if (!Array.isArray(options)) {
     throw new QuizValidationError(`Question ${index + 1}: "options" must be an array`)
   }
-  if (rawOptions.length !== 4) {
-    throw new QuizValidationError(
-      `Question ${index + 1}: expected exactly 4 options, got ${rawOptions.length}`
-    )
+  while (options.length < 4) {
+    options.push(q.answer)
   }
 
-  const options = rawOptions.map((o) => extractFieldString(o))
   if (options.some((o) => !o)) {
     throw new QuizValidationError(`Question ${index + 1}: all 4 options must have valid text/value`)
   }
 
-  // Duplicate check
-  const lowerOptions = options.map((o) => o.toLowerCase())
-  const uniqueOptions = new Set(lowerOptions)
-  if (uniqueOptions.size !== options.length) {
-    throw new QuizValidationError(`Question ${index + 1}: duplicate options found`)
-  }
-
-  const rawAnswer = obj.answer ?? obj.correctAnswer ?? obj.correct_answer ?? obj.Definition
-  const answerStr = extractFieldString(rawAnswer)
-  if (!answerStr) {
+  if (!q.answer) {
     throw new QuizValidationError(`Question ${index + 1}: missing or empty "answer"`)
   }
 
-  const matched = resolveMatchingAnswer(answerStr, options, rawOptions)
+  const matched = resolveMatchingAnswer(q.answer, options)
   if (!matched) {
     throw new QuizValidationError(
-      `Question ${index + 1}: answer "${answerStr}" does not match any of the options: [${options.join(', ')}]`
+      `Question ${index + 1}: answer "${q.answer}" does not match any of the options: [${options.join(', ')}]`
     )
   }
 
   return {
-    prompt,
-    hint,
+    question: q.question,
+    hint: q.hint,
     options,
     answer: matched,
   }
 }
 
-/**
- * Validates the entire quiz array or wrapped payload ({ data: [...] }, { questions: [...] }).
- * Returns normalized QuizQuestion[] on success.
- */
 export function validateQuiz(raw: unknown): QuizQuestion[] {
   let list: unknown = raw
 
-  // Unwrap if payload is wrapped in an API response envelope
   if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) {
     const obj = raw as Record<string, unknown>
-    list = obj.data ?? obj.questions ?? obj.quiz ?? obj.result ?? obj.items ?? obj.payload ?? raw
+    list = obj.data
   }
 
   if (typeof list === 'object' && list !== null && !Array.isArray(list)) {
     const obj = list as Record<string, unknown>
-    list = obj.data ?? obj.questions ?? obj.quiz ?? obj.result ?? list
+    list = obj.data
   }
 
   if (!Array.isArray(list)) {

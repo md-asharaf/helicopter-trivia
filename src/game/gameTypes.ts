@@ -29,7 +29,7 @@ export type HelicopterStatus =
 
 // ─── Quiz Types ───────────────────────────────────────────────────────────────
 export interface QuizQuestion {
-  prompt: string
+  question: string
   hint: string
   options: string[]   // exactly 4
   answer: string      // must be in options

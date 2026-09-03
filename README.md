@@ -46,7 +46,7 @@ The game seamlessly accepts trivia questions in raw strings or structured `{ lab
 ```json
 [
   {
-    "prompt": {
+    "question": {
       "label": "Which planet is known as the Red Planet?",
       "value": "Which planet is known as the Red Planet?"
     },
