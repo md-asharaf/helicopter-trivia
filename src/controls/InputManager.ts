@@ -92,6 +92,11 @@ class InputManager {
     this.reset()
   }
 
+  setVirtualKey(code: string, isPressed: boolean): void {
+    if (this.paused) return
+    this.keys[code] = isPressed
+  }
+
   setPaused(paused: boolean): void {
     this.paused = paused
     if (paused) {
@@ -141,6 +146,7 @@ class InputManager {
     if (Math.abs(this.touchMove.x) > 0.05) {
       const joystickSpeedX = 1.8 * dt; // Tuned sensitivity for smooth flight
       this.flightX = Math.max(-1, Math.min(1, this.flightX - this.touchMove.x * joystickSpeedX));
+      this.aimX = this.flightX;
     }
 
     if (Math.abs(this.touchMove.z) > 0.05) {

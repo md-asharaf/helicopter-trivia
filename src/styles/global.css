@@ -1486,26 +1486,38 @@ html, body {
   right: 0;
   z-index: 20;
   display: flex;
-  justify-content: flex-end; /* Desktop: right side */
   align-items: flex-end;
   padding: 0 24px env(safe-area-inset-bottom, 16px);
   pointer-events: none;
 }
 
+/* Desktop Layout (Joystick on Right, No Fire Button) */
+.is-desktop-device .virtual-controls {
+  justify-content: flex-end;
+}
+.is-desktop-device .combat-controls {
+  display: none;
+}
+
+/* Mobile Layout (Joystick on Left, Fire Button on Right) */
+.is-mobile-device .virtual-controls {
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 36px env(safe-area-inset-bottom, 32px);
+}
+.is-mobile-device .combat-controls {
+  display: flex;
+}
+
 @media (max-width: 1024px) {
-  .virtual-controls {
-    justify-content: flex-start; /* Mobile: left side */
-    padding: 0 36px env(safe-area-inset-bottom, 32px); /* Comfortable thumb spacing */
-  }
-  
   .hud-options-panel {
     bottom: 24px;
-    left: 170px; /* Adjust boundary to clear the newly shifted joystick + gap */
-    right: 16px;
+    left: 170px;
+    right: 120px; /* Adjust boundary to clear the Fire button */
     width: auto;
     transform: none;
     max-width: 500px;
-    margin-left: auto; /* Keeps it right-aligned if it hits max-width */
+    margin-left: auto;
   }
   
   .hud-options-grid {
@@ -1736,10 +1748,14 @@ html, body {
   .pause-title { font-size: 20px; margin-bottom: 12px; }
   .modal-container { padding: 16px; }
 
-  /* Compact virtual joystick to free up screen real estate */
+  /* Compact virtual joystick and combat controls to free up screen real estate */
   .joystick-base { width: 70px; height: 70px; }
   .joystick-knob { width: 28px; height: 28px; }
   .joystick-area { padding-bottom: 8px; }
+  .combat-controls { padding-bottom: 8px; gap: 8px; }
+  .fire-button { width: 60px; height: 60px; }
+  .fire-icon { font-size: 20px; }
+  .target-btn { width: 40px; height: 40px; font-size: 14px; }
   .virtual-controls { padding: 0 16px env(safe-area-inset-bottom, 8px); }
   
   /* Adjust options panel left boundary since joystick is smaller and moved left */

@@ -20,6 +20,8 @@ function AppInner() {
   const state = useGameState()
   const dispatch = useGameDispatch()
 
+  const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+
   // Init audio on first user interaction
   useEffect(() => {
     const initAudio = () => {
@@ -67,7 +69,6 @@ function AppInner() {
     }
   }
 
-  const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0
   const isOverlayOpen =
     state.phase === 'paused' ||
     state.phase === 'resolving' ||
@@ -88,7 +89,7 @@ function AppInner() {
   const showVirtualControls = (state.phase === 'playing' || state.phase === 'bombing') && !isOverlayOpen
 
   return (
-    <div id="game-root">
+    <div id="game-root" className={isTouch ? 'is-mobile-device' : 'is-desktop-device'}>
       {/* 3D Scene — mounted once mission starts */}
       {state.phase !== 'ready' && state.phase !== 'loading' && state.phase !== 'error' && (
         <GameScene />

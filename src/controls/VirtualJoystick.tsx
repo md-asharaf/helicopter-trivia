@@ -114,6 +114,22 @@ export function VirtualJoystick({ onFirePress }: VirtualJoystickProps) {
         </div>
         <span className="joystick-label">FLIGHT</span>
       </div>
+
+      {/* Combat Controls (Aiming & Fire) */}
+      <div className="combat-controls">
+        <button
+          className="fire-button"
+          onClick={(e) => {
+            e.stopPropagation();
+            inputManager.touchFire();
+            if (onFirePress) onFirePress();
+          }}
+          aria-label="Launch Grenade"
+        >
+          <span className="fire-icon">💣</span>
+          <span className="fire-label">FIRE</span>
+        </button>
+      </div>
     </div>
   )
 }

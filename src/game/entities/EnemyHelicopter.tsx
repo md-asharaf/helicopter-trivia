@@ -5,7 +5,6 @@ import { HelicopterMesh } from './HelicopterMesh'
 import { AnswerLabel } from './AnswerLabel'
 import type { HelicopterOption } from '@/game/gameTypes'
 import { randFloat } from '@/utils/math'
-import { inputManager } from '@/controls/InputManager'
 
 export interface EnemyHelicopterHandle {
   getWorldPosition: (out?: THREE.Vector3) => THREE.Vector3
@@ -27,7 +26,7 @@ interface EnemyHelicopterProps extends HelicopterOption {
  */
 export const EnemyHelicopter = forwardRef<EnemyHelicopterHandle, EnemyHelicopterProps>(
   function EnemyHelicopter(
-    { optionIndex, optionText: _optionText, isCorrect: _isCorrect, sessionId: _sessionId, paused, spawnPosition, crashed, onTargetSelected },
+    { optionIndex, optionText: _optionText, isCorrect: _isCorrect, sessionId: _sessionId, paused, spawnPosition, crashed },
     ref
   ) {
     const groupRef = useRef<THREE.Group>(null)

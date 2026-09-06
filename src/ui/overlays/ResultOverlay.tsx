@@ -65,13 +65,13 @@ export function ResultOverlay() {
       <div className="result-overlay__card">
         {isCorrect && (
           <div className="result-overlay__content">
-            <div className="result-overlay__title">🎯 TARGET DESTROYED!</div>
+            <div className="result-overlay__title">TARGET DESTROYED!</div>
             <div className="result-overlay__delta">{delta} PTS</div>
           </div>
         )}
         {isWrong && (
           <div className="result-overlay__content">
-            <div className="result-overlay__title">⚠️ WRONG TARGET!</div>
+            <div className="result-overlay__title">WRONG TARGET!</div>
             <div className="result-overlay__delta">{delta} PTS</div>
             <div className="result-overlay__correct-reveal">
               Correct: <strong>{currentQuestion?.answer}</strong>
@@ -80,7 +80,7 @@ export function ResultOverlay() {
         )}
         {isMiss && (
           <div className="result-overlay__content">
-            <div className="result-overlay__title">❌ TARGET MISSED!</div>
+            <div className="result-overlay__title">TARGET MISSED!</div>
             <div className="result-overlay__delta">{delta} PTS</div>
             <div className="result-overlay__correct-reveal">
               Correct: <strong>{currentQuestion?.answer}</strong>
