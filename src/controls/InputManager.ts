@@ -22,6 +22,7 @@ class InputManager {
   // Normalized aim angles: -1 (far left) to +1 (far right)
   public aimX: number = 0
   public aimY: number = 0
+  public flightX: number = 0
 
   setAim(aimX: number, aimY: number): void {
     this.aimX = Math.max(-1, Math.min(1, aimX))
@@ -76,23 +77,12 @@ class InputManager {
       this.keys[e.code] = false
     }
 
-    const onMouseMove = (e: MouseEvent) => {
-      if (this.paused) return
-      const nx = (e.clientX / window.innerWidth - 0.5) * 2
-      const ny = (1 - e.clientY / window.innerHeight - 0.5) * 2
-
-      this.aimX = Math.max(-1, Math.min(1, nx * 1.25))
-      this.aimY = Math.max(-0.6, Math.min(1, ny * 1.25))
-    }
-
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
-    window.addEventListener('mousemove', onMouseMove)
 
     this.boundHandlers.push(
       () => window.removeEventListener('keydown', onKeyDown),
-      () => window.removeEventListener('keyup', onKeyUp),
-      () => window.removeEventListener('mousemove', onMouseMove)
+      () => window.removeEventListener('keyup', onKeyUp)
     )
   }
 
@@ -123,23 +113,39 @@ class InputManager {
     this.touchMove = { x: 0, y: 0, z: 0 }
     this.aimX = 0
     this.aimY = 0
+    this.flightX = 0
   }
 
   updateAimWithDelta(delta: number): void {
     if (this.paused) return
     const dt = Math.min(delta, 0.1)
     const speed = 2.6 * dt
+
+    // Note: X-axis is inverted in the 3D space (Positive aimX/flightX = Left, Negative = Right)
     if (this.keys['KeyA'] || this.keys['ArrowLeft']) {
-      this.aimX = Math.max(-1, this.aimX - speed)
+      this.aimX = Math.min(1, this.aimX + speed)
+      this.flightX = Math.min(1, this.flightX + speed)
     }
     if (this.keys['KeyD'] || this.keys['ArrowRight']) {
-      this.aimX = Math.min(1, this.aimX + speed)
+      this.aimX = Math.max(-1, this.aimX - speed)
+      this.flightX = Math.max(-1, this.flightX - speed)
     }
     if (this.keys['KeyW'] || this.keys['ArrowUp']) {
       this.aimY = Math.min(1, this.aimY + speed)
     }
     if (this.keys['KeyS'] || this.keys['ArrowDown']) {
       this.aimY = Math.max(-0.6, this.aimY - speed)
+    }
+
+    // Smooth velocity-based flight movement via Virtual Joystick
+    if (Math.abs(this.touchMove.x) > 0.05) {
+      const joystickSpeedX = 1.8 * dt; // Tuned sensitivity for smooth flight
+      this.flightX = Math.max(-1, Math.min(1, this.flightX - this.touchMove.x * joystickSpeedX));
+    }
+
+    if (Math.abs(this.touchMove.z) > 0.05) {
+      const joystickSpeedY = 1.8 * dt;
+      this.aimY = Math.max(-0.6, Math.min(1, this.aimY - this.touchMove.z * joystickSpeedY));
     }
   }
 
@@ -156,19 +162,7 @@ class InputManager {
     this.scratchMove.set(0, 0, 0)
     if (this.paused) return this.scratchMove
 
-    // Keyboard X: Left / Right
-    if (this.keys['KeyA'] || this.keys['ArrowLeft']) this.scratchMove.x -= 1
-    if (this.keys['KeyD'] || this.keys['ArrowRight']) this.scratchMove.x += 1
-
-    // Keyboard Y: Rise / Descend (Shift/Ctrl or E/Q)
-    if (this.keys['ShiftLeft'] || this.keys['ShiftRight'] || this.keys['KeyE']) this.scratchMove.y += 1
-    if (this.keys['ControlLeft'] || this.keys['ControlRight'] || this.keys['KeyQ']) this.scratchMove.y -= 1
-
-    // Keyboard Z: Forward / Backward (W / S)
-    if (this.keys['KeyW'] || this.keys['ArrowUp']) this.scratchMove.z -= 1
-    if (this.keys['KeyS'] || this.keys['ArrowDown']) this.scratchMove.z += 1
-
-    // Add touch joystick movement
+    // Movement can only be done by joystick
     this.scratchMove.x += this.touchMove.x
     this.scratchMove.y += this.touchMove.y
     this.scratchMove.z += this.touchMove.z
@@ -222,9 +216,6 @@ class InputManager {
       return
     }
     this.touchMove = m
-    if (Math.abs(m.x) > 0.1) {
-      this.aimX = Math.max(-1, Math.min(1, m.x * 1.4))
-    }
   }
 
   touchFire(): void {

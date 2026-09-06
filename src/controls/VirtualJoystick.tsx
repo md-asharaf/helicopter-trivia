@@ -25,7 +25,6 @@ export function VirtualJoystick({ onFirePress }: VirtualJoystickProps) {
 
   const JOYSTICK_RADIUS = 45
 
-  // Reset touch movement on unmount
   useEffect(() => {
     return () => {
       inputManager.setTouchMovement({ x: 0, y: 0, z: 0 })
@@ -56,27 +55,29 @@ export function VirtualJoystick({ onFirePress }: VirtualJoystickProps) {
     })
   }, [])
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
     e.stopPropagation()
-    const touch = e.touches[0]
+    const target = e.target as HTMLElement
+    target.setPointerCapture(e.pointerId)
     joystickState.current = {
       active: true,
-      startX: touch.clientX,
-      startY: touch.clientY,
+      startX: e.clientX,
+      startY: e.clientY,
       currentX: 0,
       currentY: 0,
     }
   }, [])
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
     e.stopPropagation()
     if (!joystickState.current.active) return
-    const touch = e.touches[0]
-    updateJoystick(touch.clientX, touch.clientY)
+    updateJoystick(e.clientX, e.clientY)
   }, [updateJoystick])
 
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
     e.stopPropagation()
+    const target = e.target as HTMLElement
+    target.releasePointerCapture(e.pointerId)
     joystickState.current.active = false
     joystickState.current.currentX = 0
     joystickState.current.currentY = 0
@@ -88,23 +89,18 @@ export function VirtualJoystick({ onFirePress }: VirtualJoystickProps) {
     inputManager.setTouchMovement({ x: 0, y: 0, z: 0 })
   }, [])
 
-  const handleFireTouch = useCallback((e: React.TouchEvent) => {
-    e.stopPropagation()
-    inputManager.touchFire()
-    onFirePress?.()
-  }, [onFirePress])
-
   return (
     <div className="virtual-controls" aria-label="Mobile Touch Controls">
-      {/* Virtual Joystick for Aim & Flight */}
+      {/* Virtual Joystick for Flight */}
       <div
         className="joystick-area"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchEnd}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
         role="region"
         aria-label="Flight steering joystick"
+        style={{ touchAction: 'none' }}
       >
         <div className="joystick-base">
           <div className="joystick-ring" />
@@ -116,19 +112,7 @@ export function VirtualJoystick({ onFirePress }: VirtualJoystickProps) {
             <span className="arrow arrow-right">▶</span>
           </div>
         </div>
-        <span className="joystick-label">AIM / FLIGHT</span>
-      </div>
-
-      {/* Tactile Grenade Drop Button */}
-      <div className="fire-area">
-        <button
-          className="fire-button"
-          onTouchStart={handleFireTouch}
-          aria-label="Drop bomb grenade"
-        >
-          <span className="fire-icon">💣</span>
-          <span className="fire-label">LAUNCH</span>
-        </button>
+        <span className="joystick-label">FLIGHT</span>
       </div>
     </div>
   )

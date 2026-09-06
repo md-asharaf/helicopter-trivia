@@ -1,15 +1,3 @@
-/**
- * Fisher-Yates shuffle — reliable, unbiased.
- */
-export function fisherYatesShuffle<T>(arr: T[]): T[] {
-  const a = [...arr]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
-}
-
 /** Linear interpolation */
 export function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t

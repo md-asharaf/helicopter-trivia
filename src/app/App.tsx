@@ -85,7 +85,7 @@ function AppInner() {
     inputManager.setPaused(isOverlayOpen)
   }, [isOverlayOpen])
 
-  const showMobileControls = isTouch && (state.phase === 'playing' || state.phase === 'bombing') && !isOverlayOpen
+  const showVirtualControls = (state.phase === 'playing' || state.phase === 'bombing') && !isOverlayOpen
 
   return (
     <div id="game-root">
@@ -115,15 +115,15 @@ function AppInner() {
             <div className="start-screen__instructions">
               <div className="instruction-item">
                 <span className="instruction-icon">🎯</span>
-                <span><strong>MOUSE / A / D</strong> Aim & Lock Target Helicopter</span>
+                <span><strong>A / D</strong> Aim & Lock Target Helicopter</span>
               </div>
               <div className="instruction-item">
                 <span className="instruction-icon">💣</span>
-                <span><strong>SPACE / CLICK</strong> Launch Grenade at Locked Target</span>
+                <span><strong>SPACE</strong> Launch Grenade at Locked Target</span>
               </div>
               <div className="instruction-item">
                 <span className="instruction-icon">🚁</span>
-                <span><strong>W / S / A / D</strong> Maneuver Helicopter Pursuit</span>
+                <span><strong>JOYSTICK</strong> Maneuver Helicopter Pursuit</span>
               </div>
               <div className="instruction-item">
                 <span className="instruction-icon">💡</span>
@@ -162,8 +162,8 @@ function AppInner() {
       {/* Game over */}
       <GameOverOverlay />
 
-      {/* Mobile controls */}
-      {showMobileControls && <VirtualJoystick />}
+      {/* Virtual controls (Joystick) */}
+      {showVirtualControls && <VirtualJoystick />}
 
       {/* Rotate device (portrait mobile) */}
       <RotateDeviceOverlay />

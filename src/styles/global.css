@@ -1486,10 +1486,36 @@ html, body {
   right: 0;
   z-index: 20;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end; /* Desktop: right side */
   align-items: flex-end;
   padding: 0 24px env(safe-area-inset-bottom, 16px);
   pointer-events: none;
+}
+
+@media (max-width: 1024px) {
+  .virtual-controls {
+    justify-content: flex-start; /* Mobile: left side */
+    padding: 0 36px env(safe-area-inset-bottom, 32px); /* Comfortable thumb spacing */
+  }
+  
+  .hud-options-panel {
+    bottom: 24px;
+    left: 170px; /* Adjust boundary to clear the newly shifted joystick + gap */
+    right: 16px;
+    width: auto;
+    transform: none;
+    max-width: 500px;
+    margin-left: auto; /* Keeps it right-aligned if it hits max-width */
+  }
+  
+  .hud-options-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .hud-options-header {
+    display: none;
+  }
 }
 
 .joystick-area {
@@ -1649,8 +1675,8 @@ html, body {
 
 /* ─── Responsive ──────────────────────────────────────────────── */
 @media (max-width: 768px) {
-  .question-panel { max-width: 260px; }
-  .question-text { font-size: 13px; }
+  .question-panel { max-width: 260px; padding: 8px 12px; }
+  .question-text { font-size: 12px; }
   .question-panel__tip { display: none; }
   .hud__controls-hint { display: none; }
   .gameover-stats { gap: 8px; }
@@ -1658,6 +1684,21 @@ html, body {
   .stat-card__value { font-size: 18px; }
   .start-screen__instructions { padding: 14px 18px; }
   .modal-container { padding: 28px 24px; min-width: 290px; }
+  
+  /* Stack options 2x2 on small mobile instead of 1x4 */
+  .hud-options-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .hud-options-panel {
+    bottom: 15px;
+  }
+  .hud-options-header {
+    margin-bottom: 4px;
+  }
+  .hud-options-header__target {
+    font-size: 11px;
+    padding: 2px 8px;
+  }
 }
 
 @media (max-width: 390px) {
@@ -1676,6 +1717,35 @@ html, body {
   .question-text { font-size: 12px; }
   .score-display__value { font-size: 18px; }
 
+  /* Compact start screen to prevent vertical overflow */
+  .start-screen__container { padding: 12px 24px; }
+  .start-screen__title { font-size: 24px; margin: 4px 0; }
+  .start-screen__subtitle { display: none; }
+  .start-screen__instructions { 
+    display: grid; 
+    grid-template-columns: 1fr 1fr; 
+    gap: 4px 12px; 
+    padding: 8px; 
+    margin: 8px 0;
+  }
+  .instruction-item { margin-bottom: 0; font-size: 10px; }
+  .start-btn { padding: 10px 32px; font-size: 14px; margin-top: 4px; }
+  
+  /* Compact pause/modals */
+  .pause-menu { padding: 20px; }
+  .pause-title { font-size: 20px; margin-bottom: 12px; }
+  .modal-container { padding: 16px; }
+
+  /* Compact virtual joystick to free up screen real estate */
+  .joystick-base { width: 70px; height: 70px; }
+  .joystick-knob { width: 28px; height: 28px; }
+  .joystick-area { padding-bottom: 8px; }
+  .virtual-controls { padding: 0 16px env(safe-area-inset-bottom, 8px); }
+  
+  /* Adjust options panel left boundary since joystick is smaller and moved left */
+  .hud-options-panel { left: 110px; bottom: 8px; }
+
+  /* Game Over Overlay compacting */
   .gameover-overlay { padding: 10px 16px; }
   .gameover-header { margin-bottom: 8px; }
   .gameover-title { font-size: 22px; letter-spacing: 3px; }

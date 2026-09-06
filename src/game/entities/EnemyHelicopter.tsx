@@ -97,19 +97,10 @@ export const EnemyHelicopter = forwardRef<EnemyHelicopterHandle, EnemyHelicopter
     }, [crashed, spawnPosition])
 
     // Direct click on 3D helicopter selects it as target
-    const handlePointerDown = (e: { stopPropagation: () => void }) => {
-      e.stopPropagation()
-      if (!crashed && !paused) {
-        inputManager.setDirectTargetIndex(optionIndex)
-        onTargetSelected?.(optionIndex)
-      }
-    }
-
     return (
       <group
         ref={groupRef}
         position={spawnPosition.toArray()}
-        onPointerDown={handlePointerDown}
       >
         <HelicopterMesh isPlayer={false} crashed={crashed} />
 

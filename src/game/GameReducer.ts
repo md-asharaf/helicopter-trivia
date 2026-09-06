@@ -1,12 +1,9 @@
 import type { GameState, GameAction, HelicopterOption } from '@/game/gameTypes'
 import { GAME_CONFIG } from '@/game/gameConfig'
-import { fisherYatesShuffle } from '@/utils/math'
 import { getMutedFromStorage, saveMutedToStorage } from '@/utils/storage'
 
-/** Build the shuffled options array for a question */
 function buildOptions(options: string[], answer: string): HelicopterOption[] {
-  const shuffled = fisherYatesShuffle(options)
-  return shuffled.map((text, idx) => ({
+  return options.map((text, idx) => ({
     optionIndex: idx,
     optionText: text,
     isCorrect: text === answer,

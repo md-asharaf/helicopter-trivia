@@ -10,7 +10,7 @@ export function OptionsPanel() {
   const [lockedIndex, setLockedIndex] = useState(1)
 
   const currentQuestion = state.questions[state.currentQuestionIndex]
-  const options = currentQuestion?.options ?? []
+  const options = state.currentOptions.map(opt => opt.optionText)
 
   // Track closest aimed target to highlight the locked option card
   useEffect(() => {
@@ -34,10 +34,6 @@ export function OptionsPanel() {
   }, [])
 
   if (!currentQuestion || options.length === 0) return null
-
-  const handleOptionClick = (idx: number) => {
-    inputManager.setDirectTargetIndex(idx)
-  }
 
   const handleLaunch = () => {
     inputManager.touchFire()
@@ -71,13 +67,11 @@ export function OptionsPanel() {
             <button
               key={idx}
               className={`hud-option-card ${isLocked ? 'hud-option-card--locked' : ''}`}
-              onClick={() => handleOptionClick(idx)}
-              title={`Press ${numKey} or click to target ${letter}`}
+              title={`Press ${numKey} to target ${letter}`}
               aria-label={`Option ${letter}: ${optText}`}
             >
               <div className="hud-option-card__badge">
                 <span className="hud-option-card__letter">{letter}</span>
-                <span className="hud-option-card__key-badge">{numKey}</span>
                 {isLocked && <span className="hud-option-card__lock-icon">🎯</span>}
               </div>
               <div className="hud-option-card__text" title={optText}>

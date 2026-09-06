@@ -60,8 +60,8 @@ export const PlayerHelicopter = forwardRef<PlayerHelicopterHandle, PlayerHelicop
       const { yaw, pitch } = inputManager.getAimAngles()
       const move = inputManager.getMovement()
 
-      // Target X position tracks aim X smoothly across chase lanes (-26 to +26)
-      const targetX = -inputManager.aimX * 24.0
+      // Target X position tracks flight X smoothly across chase lanes (-26 to +26)
+      const targetX = -inputManager.flightX * 24.0
 
       // Target Y position allows full high-altitude climb (up to 36) down to treetop skimming (3.5)
       const aimHeightOffset = inputManager.aimY * 12.0
