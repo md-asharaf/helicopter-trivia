@@ -119,12 +119,14 @@ export function VirtualJoystick({ onFirePress }: VirtualJoystickProps) {
       <div className="combat-controls">
         <button
           className="fire-button"
-          onClick={(e) => {
+          onPointerDown={(e) => {
             e.stopPropagation();
+            e.preventDefault();
             inputManager.touchFire();
             if (onFirePress) onFirePress();
           }}
           aria-label="Launch Grenade"
+          style={{ touchAction: 'none' }}
         >
           <span className="fire-icon">💣</span>
           <span className="fire-label">FIRE</span>

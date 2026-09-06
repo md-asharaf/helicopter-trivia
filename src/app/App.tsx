@@ -22,6 +22,42 @@ function AppInner() {
 
   const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0
 
+  useEffect(() => {
+    if (!isTouch) return
+
+    const requestFullscreen = () => {
+      const el = document.documentElement as HTMLElement & {
+        webkitRequestFullscreen?: () => Promise<void>
+        mozRequestFullScreen?: () => Promise<void>
+      }
+      const isLandscape = window.innerWidth > window.innerHeight
+      const isAlreadyFullscreen = !!document.fullscreenElement ||
+        !!(document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement
+
+      if (isLandscape && !isAlreadyFullscreen) {
+        try {
+          if (el.requestFullscreen) {
+            el.requestFullscreen().catch(() => { })
+          } else if (el.webkitRequestFullscreen) {
+            el.webkitRequestFullscreen()
+          }
+        } catch {
+        }
+      }
+    }
+
+    window.addEventListener('orientationchange', requestFullscreen)
+    window.screen?.orientation?.addEventListener('change', requestFullscreen)
+
+    // Also try once on first user tap (gesture required by browser)
+    window.addEventListener('pointerdown', requestFullscreen, { once: true })
+
+    return () => {
+      window.removeEventListener('orientationchange', requestFullscreen)
+      window.screen?.orientation?.removeEventListener('change', requestFullscreen)
+    }
+  }, [isTouch])
+
   // Init audio on first user interaction
   useEffect(() => {
     const initAudio = () => {
